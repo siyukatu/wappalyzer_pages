@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFile, stat } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
+import { Script } from 'node:vm';
 const [html,headers,info,coverage,notFound] = await Promise.all([
   readFile('dist/index.html','utf8'),
   readFile('dist/_headers','utf8'),
@@ -20,6 +21,11 @@ assert.ok(!/body\{display:none/.test(style),'Body must remain text-detectable wh
 assert.equal(scripts.length,1,'Expect one CSP-authorized bootstrap in the head');
 assert.ok(headers.includes("style-src 'sha256-"+digest(style)+"'"),'CSS CSP hash mismatch');
 assert.ok(headers.includes("script-src 'sha256-"+digest(scripts[0])+"'"),'JS CSP hash mismatch');
+const cookieWrites=[];
+const sandbox={document:{set cookie(value){cookieWrites.push(value)},get cookie(){return ''}}};
+new Script(scripts[0],{filename:'wappalyzer-bootstrap.js'}).runInNewContext(sandbox,{timeout:5000});
+assert.ok(cookieWrites.length>=100,'Cookie fingerprint bootstrap did not execute');
+assert.ok(Object.keys(sandbox).length>300,'Global fingerprint bootstrap did not execute');
 assert.match(headers,/connect-src 'none'/);
 assert.match(headers,/frame-src 'none'/);
 assert.match(html,/wappalyzer-fingerprints" hidden/);
