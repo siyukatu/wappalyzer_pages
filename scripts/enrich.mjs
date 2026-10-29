@@ -207,7 +207,7 @@ export function generateExtras(all, witness, missingNames = new Set(), urgentNam
     }
 
   }
-  const cookieList = [...cookieValues].sort((a,b)=>b[1].priority-a[1].priority || a[0].localeCompare(b[0])).slice(0,170).reverse().map(([name,obj])=>[name,obj.value]);
+  const cookieList = [...cookieValues].sort((a,b)=>b[1].priority-a[1].priority || a[0].localeCompare(b[0])).slice(0,179).reverse().map(([name,obj])=>[name,obj.value]);
   const cookieScript = 'for(const [name,value] of ' + JSON.stringify(cookieList) +
     '){try{document.cookie=name+"="+encodeURIComponent(value)+"; Path=/; SameSite=Lax; Secure";}catch{}}\n';
   const propJSON=JSON.stringify([...domProperties.values()]).replace(/</g,'\\u003c');
