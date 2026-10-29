@@ -76,7 +76,7 @@ const hash = createHash('sha256').update(bootstrap).digest('base64');
  * The iframe/object/embed rule also protects against markup that escapes the wrapper.
  */
 const cssMarkers = cssFingerprints(all, witness);
-const concealCss = 'html{overflow-x:hidden!important}body{position:fixed!important;left:-200vw!important;top:0!important;width:1px!important;height:1px!important;overflow:hidden!important;opacity:0!important}#wappalyzer-fingerprints[hidden]{display:block!important}iframe,object,embed{display:none!important}' + cssMarkers.css;
+const concealCss = 'html{overflow-x:hidden!important}body{position:fixed!important;left:-200vw!important;top:0!important;width:1px!important;height:1px!important;overflow:hidden!important;opacity:0!important}iframe,object,embed{display:none!important}' + cssMarkers.css;
 const styleHash = createHash('sha256').update(concealCss).digest('base64');
 const sourceCommit = process.env.CF_PAGES_COMMIT_SHA || process.env.GITHUB_SHA || 'local';
 const pageBuildVersion = '4';
@@ -96,7 +96,7 @@ const html = '<!doctype html>\n<html lang="en"><head><meta charset="utf-8">'+dep
   [...scripts].map((url) => '<script src="' + escape(url) + '"></script>').join('\n') + '\n' +
   '<script>' + bootstrap.replace(/<\/script/gi, '<\\/script') + '</script>\n</head><body>\n' +
   '<!-- Synthetic signatures only; named technologies are NOT necessarily installed. -->\n' +
-  '<div id="wappalyzer-fingerprints" hidden>\n' +
+  '<div id="wappalyzer-fingerprints">\n' +
   extras.body + '\n' +
   [...dom].join('\n') + '\n<div>' + [...text].map(escape).join(' ') + '</div>\n' +
   '</div>\n</body></html>\n';
