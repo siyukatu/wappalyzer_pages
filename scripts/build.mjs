@@ -7,6 +7,7 @@ import { compileGlobals } from './globals.mjs';
 import { witness } from './regex-witness.mjs';
 import { readFile } from 'node:fs/promises';
 import { coverage } from './coverage.mjs';
+import { makePassiveUrlCandidates } from './passive-urls.mjs';
 
 const API = 'https://api.github.com/repos/HTTPArchive/wappalyzer/contents/src/technologies?ref=main';
 const OUT = 'dist';
@@ -34,25 +35,17 @@ for (let i = 0; i < files.length; i += 5) {
 const baseline = JSON.parse(await readFile('data/detected-baseline.json','utf8'));
 const baselineCoverage = coverage(all, baseline);
 const missingBaseline = new Set(baselineCoverage.missing.map(x => x.name));
+const regressed = JSON.parse(await readFile('data/detection-regressions.json','utf8'));
+const priorityNames = new Set([...missingBaseline,...regressed.regressed]);
 const counts = {};
 const inlineSignatures = new Set();
 const meta = new Map(), scripts = new Set(), links = new Set(), dom = new Set(), text = new Set(), globals = new Set(), htmlAttrs = new Map();
 const addMeta = (name, value) => { if (name && value) { const k = name + '\0' + value; meta.set(k, [name, value]); } };
 const addPath = (value) => { if (value && /^[a-zA-Z_$][\w$]*(?:\.[a-zA-Z_$][\w$]*){0,8}$/.test(value) && !/(?:__proto__|prototype|constructor)/.test(value)) globals.add(value); };
-function addUrl(raw, kind) {
-  if (typeof raw !== 'string' || !raw) return;
-  const value = witness(raw);
-  if (!value) return;
-  // Keep URLs as passive browser-visible fingerprints: strict CSP blocks requests.
-  // Never invent a hostname from a regex path (e.g. "https://etc/designs/").
-  let url = value.replace(/[#\s"'<>]/g, '');
-  if (/^\/\//.test(url)) url='https:'+url;
-  if (!/^https?:\/\//i.test(url)) url='/' + url.replace(/^\/+/,'');
-  const testUrl = url.startsWith('/') ? 'https://wappalyzer-technologies.pages.dev'+url : url;
-  // Require a real-looking host for absolute URLs. Relative paths become local.
-  if (!/^https?:\/\/[a-z0-9][a-z0-9.-]*\.[a-z]{2,}(?::\d{2,5})?(?:[/?#]|$)/i.test(testUrl)) return;
-  try { if (!new RegExp(raw.split('\\;')[0],'i').test(testUrl)) return; } catch { return; }
-  (kind === 'script' ? scripts : links).add(url);
+function addUrl(raw, kind, name) {
+  const choices = makePassiveUrlCandidates(raw, witness);
+  const wanted = regressed.regressed.includes(name) ? choices : choices.slice(0,1);
+  for (const url of wanted) (kind === 'script' ? scripts : links).add(url);
 }
 for (const [name, item] of Object.entries(all)) {
   if (!item || typeof item !== 'object') continue;
@@ -63,9 +56,9 @@ for (const [name, item] of Object.entries(all)) {
     const value = p === '' ? '1' : witness(p);
     if (value) addMeta(key, value);
   }
-  for (const p of values(item.scriptSrc)) addUrl(p, 'script');
+  for (const p of values(item.scriptSrc)) addUrl(p, 'script', name);
   for (const p of values(item.scripts)) { const v = witness(p); if (v && !v.includes('*/') && v.length < 300) inlineSignatures.add(v); }
-  for (const p of values(item.css)) addUrl(p, 'link');
+  for (const p of values(item.css)) addUrl(p, 'link', name);
   for (const [path] of entries(item.js)) addPath(path);
   for (const p of values(item.text)) { const v = witness(p); if (v && v.length < 100) text.add(v); }
   for (const p of values(item.html)) { const v = witness(p); if (v && v.length < 100) text.add(v); }
@@ -80,10 +73,10 @@ for (const [name, item] of Object.entries(all)) {
     }
   }
 }
-const extras = generateExtras(all, witness, missingBaseline);
+const extras = generateExtras(all, witness, priorityNames);
 const compactGlobals = compileGlobals(all, witness);
 const inlineWitnesses = [...inlineSignatures].sort().map(v => '/* wappalyzer-scripts-signature: ' + v.replace(/\*\//g,'* /') + ' */').join('\n');
-const bootstrap = compactGlobals.source + '\n' + extras.bootstrap + '\n' + inlineWitnesses;
+const bootstrap = (compactGlobals.source + ';' + extras.bootstrap + ';' + inlineWitnesses).replace(/[\r\n]/g,'');
 const hash = createHash('sha256').update(bootstrap).digest('base64');
 /* Static Pages cannot issue a fresh per-response nonce. Use CSP SHA-256 instead.
  * Hide the entire synthetic fingerprint body while keeping its DOM accessible.
@@ -106,11 +99,14 @@ const html = '<!doctype html>\n<html lang="en"><head><meta charset="utf-8">\n' +
   '</div>\n</body></html>\n';
 // All dynamic content is emitted at build time; no Cloudflare Functions.
 await mkdir(OUT, { recursive: true });
-await writeFile(OUT + '/index.html', html);
+// Compress only the emitted HTML; preserve quoted attribute values and CSP hashes.
+const compactHtml = html.replace(/[\r\n]/g,'');
+if (/[\r\n]/.test(compactHtml)) throw new Error('index.html must be one line');
+await writeFile(OUT + '/index.html', compactHtml);
 await writeFile(OUT + '/_headers', emitHeaders(hash, extras, styleHash));
-await writeFile(OUT + '/404.html', '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><title>404 Not Found</title></head><body><h1>404 Not Found</h1><a href="/">Home</a></body></html>\n');
+await writeFile(OUT + '/404.html', '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><title>404 Not Found</title></head><body><h1>404 Not Found</h1><a href="/">Home</a></body></html>');
 await writeFile(OUT + '/robots.txt', 'User-agent: *\nDisallow: /\n');
 await writeFile(OUT + '/coverage.json', JSON.stringify(baselineCoverage, null, 2));
-await writeFile(OUT + '/build-info.json', JSON.stringify({ generatedAt: new Date().toISOString(), ruleFiles: files.length, technologies: Object.keys(all).length, signatures: { meta: meta.size, scriptSrc: scripts.size, link: links.size, dom: dom.size, text: text.size, js: compactGlobals.stats.globalPaths, scriptText: inlineSignatures.size }, channels: counts, extras: extras.stats, globals: compactGlobals.stats }, null, 2));
+await writeFile(OUT + '/build-info.json', JSON.stringify({ generatedAt: new Date().toISOString(), ruleFiles: files.length, technologies: Object.keys(all).length, signatures: { meta: meta.size, scriptSrc: scripts.size, link: links.size, dom: dom.size, text: text.size, js: compactGlobals.stats.globalPaths, scriptText: inlineSignatures.size, regressedPrioritized: regressed.regressed.length }, channels: counts, extras: extras.stats, globals: compactGlobals.stats }, null, 2));
 console.log('Generated ' + Object.keys(all).length + ' technology candidates from ' + files.length + ' upstream JSON files.');
-console.log('index.html bytes: ' + Buffer.byteLength(html));
+console.log('index.html bytes: ' + Buffer.byteLength(compactHtml));
