@@ -35,6 +35,16 @@ jobs:
         run: node scripts/selfcheck-prepare.mjs
       - name: Unpack actual Wappalyzer extension for Selenium
         run: python scripts/selfcheck-unpack.py
+      - name: Check the actual bundled Wappalyzer matching engine API
+        run: |
+          node - <<'NODE'
+          const fs=require('fs');
+          const path='.selfcheck/extension/js/wappalyzer.js';
+          const source=fs.readFileSync(path,'utf8');
+          console.log('BUNDLED_ENGINE',JSON.stringify({bytes:source.length,hasModuleExports:source.includes('module.exports'),hasSetTechnologies:source.includes('setTechnologies'),hasAnalyze:source.includes('analyze('),head:source.slice(0,200)}));
+          try {const core=require('./'+path);console.log('ENGINE_EXPORTS',Object.keys(core||{}).slice(0,25));}
+          catch(error){console.log('BUNDLED_REQUIRE_ERROR',error.message.slice(0,600))}
+          NODE
       - name: Install Selenium
         run: python -m pip install 'selenium>=4.35,<5'
       - name: Inspect real extension engine, popup, and local storage in Selenium
