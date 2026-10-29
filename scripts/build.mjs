@@ -37,7 +37,7 @@ const addMeta = (name, value) => { if (name && value) { const k = name + '\0' + 
 const addPath = (value) => { if (value && /^[a-zA-Z_$][\w$]*(?:\.[a-zA-Z_$][\w$]*){0,8}$/.test(value) && !/(?:__proto__|prototype|constructor)/.test(value)) globals.add(value); };
 function addUrl(raw, kind, name) {
   const choices = makePassiveUrlCandidates(raw, witness);
-  const wanted = (urgentNames.has(name) || regressed.regressed.includes(name)) ? choices : choices.slice(0,1);
+  const wanted = priorityNames.has(name) || regressed.regressed.includes(name) ? choices : choices.slice(0,1);
   for (const url of wanted) (kind === 'script' ? scripts : links).add(url);
 }
 for (const [name, item] of Object.entries(all)) {
