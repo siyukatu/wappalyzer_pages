@@ -46,7 +46,7 @@ for (const [name, item] of Object.entries(all)) {
     if (item[key] != null) counts[key] = (counts[key] || 0) + 1;
   }
   for (const [key, patterns] of entries(item.meta)) for (const p of values(patterns)) {
-    const value = p === '' ? '1' : witness(p);
+    const value = typeof p === 'string' && p.split('\\;')[0] === '' ? '1' : witness(p);
     if (value) addMeta(key, value);
   }
   for (const p of values(item.scriptSrc)) addUrl(p, 'script', name);
