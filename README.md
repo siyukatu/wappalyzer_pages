@@ -34,3 +34,7 @@ The source GitHub repository can remain private even though a production Pages s
 Cloudflare documents a limit of 100 matching rules and 2,000 characters per header line. This build uses a **single** `/*` rule, with each line kept within the limit. Cloudflare Pages currently limits static file size to 25 MiB. There is no `functions/` or `_worker.js`.
 
 Documentation: https://developers.cloudflare.com/pages/configuration/headers/ and https://developers.cloudflare.com/pages/configuration/serving-pages/
+
+## Invisible fingerprint page
+
+The generated index now contains an inline `<style id="wappalyzer-conceal">` that applies `body { display: none !important }` and hides `iframe`, `object`, and `embed` elements explicitly. Fingerprint DOM nodes remain in the source and in the document. A `hidden` wrapper offers an additional fallback. The CSP `style-src` permits **only the SHA-256 hash** of this exact generated style, without `unsafe-inline`. A fixed nonce would not provide meaningful request-specific security on a static Cloudflare Pages deployment. JavaScript remains governed by a separate hashed `script-src` directive. No Functions are needed.
