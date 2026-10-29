@@ -3,7 +3,7 @@
 const SKIP_HEADERS = new Set([
   'content-security-policy','content-security-policy-report-only',
   'content-type','content-length','content-encoding','transfer-encoding',
-  'cache-control','etag','last-modified','vary','location','server','date',
+  'cache-control','etag','last-modified','vary','location','date',
   'connection','keep-alive','set-cookie','access-control-allow-origin',
   'access-control-allow-credentials','access-control-allow-methods',
   'access-control-allow-headers','strict-transport-security',
