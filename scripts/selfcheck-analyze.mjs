@@ -117,8 +117,8 @@ const matchedChannels={};
 for(const t of technologies)for(const k of t.channels)matchedChannels[k]=(matchedChannels[k]||0)+1;
 const result={
   generatedAt:new Date().toISOString(),url:observed.url,
-  engine:'Selenium Chrome + HTTPArchive archived open-source Wappalyzer engine',
-  caveat:'This is not the current proprietary browser extension; results are not directly equivalent to a Wappalyzer CSV export.',
+  engine:'Selenium browser observations + exact js/wappalyzer.js detector extracted from Chrome Web Store CRX',
+  caveat:'Identical matching module and technology JSON, but Selenium signal collection still differs from the extension content/background scripts, so this is not yet a complete extension-native scan.',
   summary:{lastManualCsv:prior.size,seleniumDetected:technologies.length,
     netDifference:technologies.length-prior.size,
     seleniumOnlyCount:gained.length,manualCsvOnlyCount:missing.length,
@@ -142,9 +142,9 @@ const md=[
   '**Wappalyzer CRX used:** '+ruleSource.version+' ('+ruleSource.technologies+' technology definitions)',
   '**CRX matches deployed snapshot:** '+(currentSourceMatchesDeployment?'yes':'not verified (different deployment or unpublished CRX)'),
   '**Matches current checked-out commit:** '+(observed.deployment?.isLatestCommit?'yes':'not confirmed (deployment may be pending)'),
-  '**Detector:** HTTPArchive original open-source Wappalyzer core with live Selenium observations.',
+  '**Detector:** Exact matching engine and technology definitions taken from the same Chrome Web Store CRX, using Selenium browser observations.',
   '',
-  '> This is not the proprietary commercial Wappalyzer extension. Counts may differ, especially for probes, DNS, XHR and timing.','',
+  ' > The matching module is identical to the installed extension; collection of browser data is still approximated until native content/background scripts run.','',
   '| Metric | Count |','| --- | ---: |',
   '| Previous manual CSV | '+prior.size+' |',
   '| Selenium-inferred technologies | '+technologies.length+' |',
