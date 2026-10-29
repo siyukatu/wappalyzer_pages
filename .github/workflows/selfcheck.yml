@@ -35,6 +35,13 @@ jobs:
         run: node scripts/selfcheck-prepare.mjs
       - name: Install Selenium
         run: python -m pip install 'selenium>=4.35,<5'
+      - name: Restore prior diagnosis from first-party GitHub Actions cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .selfcheck/cached-report.json
+          key: selenium-wappalyzer-${{ github.run_id }}
+          restore-keys: |
+            selenium-wappalyzer-
       - name: Fetch previous Selenium report for automatic trend comparison
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -43,6 +50,15 @@ jobs:
         run: python scripts/selenium-capture.py --url https://wappalyzer-technologies.pages.dev/
       - name: Run original Wappalyzer matching engine and publish report
         run: node scripts/selfcheck-analyze.mjs
+      - name: Persist report for the next Selenium run
+        if: success()
+        run: cp .selfcheck/report.json .selfcheck/cached-report.json
+      - name: Save report in GitHub Actions cache
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: .selfcheck/cached-report.json
+          key: selenium-wappalyzer-${{ github.run_id }}
       - name: Upload complete self-diagnosis (JSON + Markdown)
         if: always()
         uses: actions/upload-artifact@v4
