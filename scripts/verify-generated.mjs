@@ -15,6 +15,10 @@ const style=/<style id="wappalyzer-conceal">([\s\S]*?)<\/style>/.exec(html)?.[1]
 const head=html.slice(0,html.indexOf('</head>'));
 const scripts=[...head.matchAll(/<script>([\s\S]*?)<\/script>/gi)].map(m=>m[1]);
 assert.ok(style,'Concealment style missing');
+assert.match(head,/<meta name="wappalyzer-pages-commit" content="[^"]+">/);
+assert.ok(head.includes('<meta name="wappalyzer-pages-rules-version" content="'+info.ruleSource.version+'">'));
+assert.ok(head.includes('<meta name="wappalyzer-pages-rules-sha256" content="'+info.ruleSource.sha256+'">'));
+assert.equal(typeof info.pageBuildVersion,'string');
 assert.ok(!/[\r\n]/.test(html),'index.html must be exactly one physical line');
 assert.ok(!/[\r\n]/.test(notFound),'404.html must be exactly one physical line');
 assert.ok(!/body\{display:none/.test(style),'Body must remain text-detectable while visually hidden');
