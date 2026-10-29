@@ -7,6 +7,7 @@ JavaScript signals are handed to the original open-source Wappalyzer analyzer.
 """
 import argparse
 import os
+import re
 import http.client
 import base64
 import json
@@ -125,8 +126,22 @@ def main():
         driver.set_page_load_timeout(120)
         driver.set_script_timeout(120)
         driver.execute_cdp_cmd('Network.enable',{})
-        driver.get(args.url)
-        WebDriverWait(driver,60).until(lambda d:d.execute_script('return document.readyState') in ('interactive','complete'))
+        expected=os.environ.get('EXPECTED_COMMIT','')
+        if expected and not re.fullmatch('[a-f0-9]{40}',expected):
+            raise RuntimeError('EXPECTED_COMMIT must be a full Git SHA')
+        actual=None
+        for attempt in range(25):
+            driver.get(args.url)
+            WebDriverWait(driver,60).until(lambda d:d.execute_script('return document.readyState') in ('interactive','complete'))
+            actual=driver.execute_script(
+                'return document.querySelector(\'meta[name="wappalyzer-pages-commit"]\')?.content||null')
+            if not expected or actual==expected:
+                print('DEPLOYMENT_MATCH',json.dumps({'expected':expected,'found':actual,'attempt':attempt+1}),flush=True)
+                break
+            print('WAITING_FOR_PAGES',json.dumps({'expected':expected[:12],'found':(actual or '')[:12],'attempt':attempt+1}),flush=True)
+            time.sleep(10)
+        else:
+            raise RuntimeError('Cloudflare Pages is still not at target commit '+expected+'; found '+str(actual))
         time.sleep(2)
         page=driver.execute_script(CAPTURE_JS,specs['js'],specs['dom'])
         events=[]
