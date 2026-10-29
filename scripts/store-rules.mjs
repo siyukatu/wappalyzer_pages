@@ -3,6 +3,8 @@
 // extension execution is involved. Do not run the extension's bundled scripts.
 import { inflateRawSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { dirname } from 'node:path';
 
 export const EXTENSION_ID='gppongmhjkpfnbhagpmjfkannfbllamg';
 const STORE='https://clients2.google.com/service/update2/crx';
@@ -81,6 +83,11 @@ async function downloadPackage() {
 export async function fetchStoreRules() {
   const raw=await downloadPackage();
   const {zip,crxFormat}=zipPayload(raw);
+  if(process.env.CRX_EXTRACT_ZIP_PATH){
+    const target=process.env.CRX_EXTRACT_ZIP_PATH;
+    await mkdir(dirname(target),{recursive:true});
+    await writeFile(target,zip);
+  }
   const entries=zipEntries(zip);
   const json=new Map();
   let manifest=null, categories=null;
@@ -113,6 +120,7 @@ export async function fetchStoreRules() {
       extensionId:EXTENSION_ID,
       version:manifest.version,
       crxFormat,
+      manifest:{manifestVersion:manifest.manifest_version,background:manifest.background,action:manifest.action,permissions:manifest.permissions,host_permissions:manifest.host_permissions,content_scripts:manifest.content_scripts,web_accessible_resources:manifest.web_accessible_resources},
       sizeBytes:raw.length,
       sha256:createHash('sha256').update(raw).digest('hex'),
       technologyFiles:json.size,
