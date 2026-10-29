@@ -125,7 +125,7 @@ function selectHeaders(all, witness, missingNames = new Set(), cap = 18000) {
 export function generateExtras(all, witness, missingNames = new Set()) {
   const dom = new Set(), comments = new Set(), cookieValues = new Map(), js = new Map();
   let domRuleCount = 0, cookieRuleCount=0;
-  for (const tech of Object.values(all)) {
+  for (const [techName, tech] of Object.entries(all)) {
     const dr = tech?.dom;
     const selectors = typeof dr === 'string' || Array.isArray(dr) ? values(dr) : Object.keys(dr || {});
     for (const sel of selectors) {
@@ -175,13 +175,15 @@ export function generateExtras(all, witness, missingNames = new Set()) {
       cookieRuleCount++;
       if (!/^[a-z0-9_!#$%&'*+.^|~-]{1,80}$/i.test(name)) continue;
       const sample = values(raw).map(witness).find(v => typeof v === 'string' && /^[a-z0-9_.-]{1,80}$/i.test(v)) || '1';
-      if (!cookieValues.has(name)) cookieValues.set(name, sample);
+      const priority = missingNames.has(techName) ? 1 : 0;
+      const prior = cookieValues.get(name);
+      if (!prior || priority>prior.priority) cookieValues.set(name,{value:sample,priority});
     }
 
   }
-  const cookieList = [...cookieValues].slice(0,90);
+  const cookieList = [...cookieValues].sort((a,b)=>b[1].priority-a[1].priority || a[0].localeCompare(b[0])).slice(0,160).map(([name,obj])=>[name,obj.value]);
   const cookieScript = 'for(const [name,value] of ' + JSON.stringify(cookieList) +
-    '){try{document.cookie=name+"="+encodeURIComponent(value)+"; Path=/; SameSite=Lax";}catch{}}\n';
+    '){try{document.cookie=name+"="+encodeURIComponent(value)+"; Path=/; SameSite=Lax; Secure";}catch{}}\n';
   const headers = selectHeaders(all,witness,missingNames);
   const body = [...dom].join('') + [...comments].map(c=>'<!--'+c+'-->').join('');
   return {
