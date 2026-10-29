@@ -169,7 +169,16 @@ export function generateExtras(all, witness, missingNames = new Set(), urgentNam
     }
     for (const rule of values(tech?.html)) {
       const sample = witness(rule);
-      if (plain(sample) && sample.length <= 180 && comments.size < 8000) comments.add(sample);
+      if (typeof sample !== 'string' || sample.length > 180 || comments.size >= 8000) continue;
+      // Preserve genuine source-comment signatures (for example RebelMouse).
+      // Wrapping "<!-- ..." in a second comment would not serialize the
+      // expected bytes; text-escaping it would also break the HTML rule.
+      if (sample.startsWith('<!--') && !sample.includes('-->') &&
+          !sample.slice(4).includes('<!--') && !/[<>\r\n]/.test(sample.slice(4))) {
+        comments.add(sample + '-->');
+      } else if (plain(sample)) {
+        comments.add('<!--' + sample + '-->');
+      }
     }
     for (const [name, raw] of entries(tech?.cookies)) {
       cookieRuleCount++;
@@ -185,7 +194,7 @@ export function generateExtras(all, witness, missingNames = new Set(), urgentNam
   const cookieScript = 'for(const [name,value] of ' + JSON.stringify(cookieList) +
     '){try{document.cookie=name+"="+encodeURIComponent(value)+"; Path=/; SameSite=Lax; Secure";}catch{}}\n';
   const headers = selectHeaders(all,witness,missingNames,urgentNames);
-  const body = [...dom].join('') + [...comments].map(c=>'<!--'+c+'-->').join('');
+  const body = [...dom].join('') + [...comments].join('');
   return {
     bootstrap: cookieScript,
     body, headers,
