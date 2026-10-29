@@ -78,7 +78,10 @@ const html = '<!doctype html>\n<html lang="en"><head><meta charset="utf-8">\n' +
   '<title>Wappalyzer fingerprint benchmark (synthetic)</title>\n' +
   '<meta name="robots" content="noindex,nofollow,noarchive">\n' +
   '<style id="wappalyzer-conceal">' + concealCss + '</style>\n' +
-  [...meta.values()].map(([name, val]) => '<meta name="' + escape(name) + '" content="' + escape(val) + '">').join('\n') + '\n' +
+  [...meta.values()].flatMap(([name,val]) => {
+    const kinds = /^(?:og:|article:|fb:|al:|twitter:)/i.test(name) ? ['property','name'] : ['name'];
+    return kinds.map(kind => '<meta '+kind+'="'+escape(name)+'" content="'+escape(val)+'">');
+  }).join('') +
   [...links].map((url) => '<link rel="stylesheet" href="' + escape(url) + '">').join('\n') + '\n' +
   [...scripts].map((url) => '<script src="' + escape(url) + '"></script>').join('\n') + '\n' +
   '<script>' + bootstrap.replace(/<\/script/gi, '<\\/script') + '</script>\n</head><body>\n' +
