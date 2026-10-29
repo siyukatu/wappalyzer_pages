@@ -7,6 +7,7 @@ JavaScript signals are handed to the original open-source Wappalyzer analyzer.
 """
 import argparse
 import os
+import http.client
 import base64
 import json
 import pathlib
@@ -164,6 +165,9 @@ def main():
         for cookie in driver.get_cookies():
             cookies.setdefault(cookie['name'],[]).append(cookie.get('value',''))
         page['cookies']=cookies
+        # The test site intentionally emits >100 synthetic HTTP headers;
+        # Python's default HTTP parser limit otherwise rejects build-info.json.
+        http.client._MAXHEADERS=1000
         # Separate first-party metadata request: this is not a third-party probe.
         # It identifies stale Cloudflare Pages deployments during push-triggered checks.
         deployment={}
