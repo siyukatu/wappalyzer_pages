@@ -131,30 +131,19 @@ export function generateExtras(all, witness) {
       const sample = values(raw).map(witness).find(v => typeof v === 'string' && /^[a-z0-9_.-]{1,80}$/i.test(v)) || '1';
       if (!cookieValues.has(name)) cookieValues.set(name, sample);
     }
-    for (const [original, raw] of entries(tech?.js)) {
-      const path = original.replace(/^window\./, '');
-      if (!/^[a-z_$][\w$]*(?:\.[a-z_$][\w$]*){0,8}$/i.test(path)) continue;
-      if (path.split('.').some(p=>['__proto__','prototype','constructor'].includes(p))) continue;
-      if (prohibitedGlobal.has(path.split('.')[0])) continue;
-      const sample = values(raw).map(witness).find(v=>v && v.length < 200) || {};
-      const old = js.get(path);
-      if (old === undefined || (typeof old === 'object' && typeof sample === 'string')) js.set(path, sample);
-    }
+
   }
   const cookieList = [...cookieValues].slice(0,90);
   const cookieScript = 'for(const [name,value] of ' + JSON.stringify(cookieList) +
     '){try{document.cookie=name+"="+encodeURIComponent(value)+"; Path=/; SameSite=Lax";}catch{}}\n';
-  const jsData = [...js].sort(([a],[b])=>a.localeCompare(b));
-  const jsScript = 'for(const [path,value] of ' + JSON.stringify(jsData).replace(/</g,'\\u003c') +
-    '){try{const parts=path.split(".");let o=globalThis;for(let i=0;i<parts.length-1;i++){if(o[parts[i]]==null)o[parts[i]]={};o=o[parts[i]];}const k=parts[parts.length-1];if(o[k]==null)o[k]=value;}catch{}}\n';
   const headers = selectHeaders(all,witness);
   const body = '<!-- Additional simple DOM selectors generated from upstream rules -->\n' + [...dom].join('\n') +
     '\n<!-- Literal HTML-regex witnesses (inert comments; not active code) -->\n' +
     [...comments].map(c=>'<!-- signature: ' + c + ' -->').join('\n');
   return {
-    bootstrap: jsScript + cookieScript,
+    bootstrap: cookieScript,
     body, headers,
-    stats: {additionalDom:dom.size, htmlComments:comments.size, jsCandidates:js.size, cookies:cookieList.length, upstreamDomSelectors:domRuleCount, upstreamCookieRules:cookieRuleCount,
+    stats: {additionalDom:dom.size, htmlComments:comments.size, cookies:cookieList.length, upstreamDomSelectors:domRuleCount, upstreamCookieRules:cookieRuleCount,
       syntheticHeaderFields: headers.count, syntheticHeaderMatches:headers.approxMatches, syntheticHeaderBytes: headers.bytes}
   };
 }
