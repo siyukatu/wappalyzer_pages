@@ -60,11 +60,21 @@ export function compileGlobals(technologies, witness) {
     node['']=candidate;
   }
 
-  // Concise recursive hydration; one runtime loop, shared prefixes, no
-  // per-path try/catch boilerplate or duplicated global definitions.
-  const source = '(function(){const t='+safeJSON(tree)+
-  ';function w(o,t){for(const k in t){try{const n=t[k],v=n[""];let x=o[k];const children=Object.keys(n).length-(Object.hasOwn(n,"")?1:0);'+
-  'if(x==null){x=children&&typeof v==="string"?new String(v):children?{}:v===undefined?{}:v;o[k]=x;}'+
-  'if(children&&(typeof x==="object"||typeof x==="function"))w(x,n)}catch{}}}w(globalThis,t)})();';
-  return {source,stats:{globalPaths:paths.size,globalPatterns:inputPatterns,globalWitnesses:withWitness,globalPatternMatches:validated,globalTreeBytes:Buffer.byteLength(safeJSON(tree)),globalScriptBytes:Buffer.byteLength(source)}};
+  // Compact leaf nodes into a scalar; keep shared prefixes only when needed.
+  // This saves bytes for thousands of presence-only signatures.
+  function pack(node) {
+    const branches=Object.keys(node).filter(k=>k!=='');
+    if(!branches.length)return typeof node['']==='string'?node['']:0;
+    const out=Object.create(null);
+    for(const k of branches)out[k]=pack(node[k]);
+    if(typeof node['']==='string')out['']=node[''];
+    return out;
+  }
+  const serialized=safeJSON(pack(tree));
+  const source='(()=>{const t='+serialized+
+  ';function w(o,t){for(const k in t){if(!k)continue;try{const n=t[k],c=n&&typeof n==="object",v=c?n[""]:n;let x=o[k];'+
+  'if(x==null){x=c?typeof v==="string"?new String(v):{}:typeof v==="string"?v:{};o[k]=x}'+
+  'if(c&&(typeof x==="object"||typeof x==="function"))w(x,n)}catch{}}}w(globalThis,t)})();';
+  return {source,stats:{globalPaths:paths.size,globalPatterns:inputPatterns,globalWitnesses:withWitness,globalPatternMatches:validated,globalTreeBytes:Buffer.byteLength(serialized),globalScriptBytes:Buffer.byteLength(source)}};
+
 }
