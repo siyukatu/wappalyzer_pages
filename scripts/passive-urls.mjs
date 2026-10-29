@@ -24,5 +24,6 @@ export function makePassiveUrlCandidates(raw,witness,hostname='wappalyzer-techno
   const match=candidates(v,hostname).filter(c=>matches(expr,c,hostname));
   const old=match.find(c=>/^https?:\/\//.test(c));
   const relative=match.find(c=>c.startsWith('/'));
-  return unique([old,relative,match[0]].filter(Boolean)).slice(0,2);
+  const localAbsolute=match.find(c=>c.startsWith('https://'+hostname+'/'));
+  return unique([old,relative,localAbsolute,match[0]].filter(Boolean)).slice(0,3);
 }
