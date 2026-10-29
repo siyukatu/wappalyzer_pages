@@ -178,10 +178,14 @@ def main():
                 if reply.status==200:
                     raw=reply.read(300000)
                     info=json.loads(raw)
+                    source=info.get('ruleSource') or {}
                     deployment={
                         'sourceCommit':info.get('sourceCommit'),
                         'generatedAt':info.get('generatedAt'),
-                        'technologies':info.get('technologies')
+                        'technologies':info.get('technologies'),
+                        'ruleSource':source.get('type'),
+                        'crxVersion':source.get('version'),
+                        'crxSha256':source.get('sha256')
                     }
         except (OSError,ValueError,KeyError) as exc:
             deployment={'error':str(exc)[:160]}
