@@ -111,16 +111,16 @@ const styleHash = createHash('sha256').update(concealCss).digest('base64');
 const html = '<!doctype html>\n<html lang="en"><head><meta charset="utf-8">\n' +
   '<title>Wappalyzer fingerprint benchmark (synthetic)</title>\n' +
   '<meta name="robots" content="noindex,nofollow,noarchive">\n' +
-  '<style id="wappalyzer-conceal">' + concealCss + '</style>\\n' +
+  '<style id="wappalyzer-conceal">' + concealCss + '</style>\n' +
   [...meta.values()].map(([name, val]) => '<meta name="' + escape(name) + '" content="' + escape(val) + '">').join('\n') + '\n' +
   [...links].map((url) => '<link rel="stylesheet" href="' + escape(url) + '">').join('\n') + '\n' +
   [...scripts].map((url) => '<script src="' + escape(url) + '"></script>').join('\n') + '\n' +
   '<script>' + bootstrap.replace(/<\/script/gi, '<\\/script') + '</script>\n</head><body>\n' +
   '<!-- Synthetic signatures only; named technologies are NOT necessarily installed. -->\n' +
-  '<div id="wappalyzer-fingerprints" hidden>\\n' +
+  '<div id="wappalyzer-fingerprints" hidden>\n' +
   extras.body + '\n' +
   [...dom].join('\n') + '\n<div hidden>' + [...text].map(escape).join(' ') + '</div>\n' +
-  '</div>\\n</body></html>\\n';
+  '</div>\n</body></html>\n';
 // All dynamic content is emitted at build time; no Cloudflare Functions.
 await mkdir(OUT, { recursive: true });
 await writeFile(OUT + '/index.html', html);
