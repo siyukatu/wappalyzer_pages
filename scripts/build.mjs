@@ -23,9 +23,13 @@ const regressed = JSON.parse(await readFile('data/detection-regressions.json','u
 const gains = JSON.parse(await readFile('data/detection-gains.json','utf8'));
 const lostNames = new Set(regressed.regressed);
 const latestDetected = new Set([...baseline.detected.filter(n => !lostNames.has(n)),...gains.newDetected]);
-const latestCoverage = coverage(all, {source:"Second exported Wappalyzer detection CSV",host:baseline.host,detected:[...latestDetected]});
+const secondCoverage = coverage(all, {source:"Second exported Wappalyzer detection CSV",host:baseline.host,detected:[...latestDetected]});
+const third = JSON.parse(await readFile('data/detection-delta-3.json','utf8'));
+const latestNames = new Set([...latestDetected].filter(n=>!third.regressed.includes(n)).concat(third.newDetected));
+const latestCoverage = coverage(all, {source:"Third exported Wappalyzer detection CSV",host:baseline.host,detected:[...latestNames]});
 const missingLatest = new Set(latestCoverage.missing.map(x => x.name));
-const priorityNames = new Set([...missingLatest,...regressed.regressed]);
+const priorityNames = new Set([...missingLatest,...third.regressed]);
+const urgentNames = new Set(third.regressed);
 const counts = {};
 const inlineSignatures = new Set();
 const meta = new Map(), scripts = new Set(), links = new Set(), dom = new Set(), text = new Set(), globals = new Set(), htmlAttrs = new Map();
@@ -33,7 +37,7 @@ const addMeta = (name, value) => { if (name && value) { const k = name + '\0' + 
 const addPath = (value) => { if (value && /^[a-zA-Z_$][\w$]*(?:\.[a-zA-Z_$][\w$]*){0,8}$/.test(value) && !/(?:__proto__|prototype|constructor)/.test(value)) globals.add(value); };
 function addUrl(raw, kind, name) {
   const choices = makePassiveUrlCandidates(raw, witness);
-  const wanted = regressed.regressed.includes(name) ? choices : choices.slice(0,1);
+  const wanted = (urgentNames.has(name) || regressed.regressed.includes(name)) ? choices : choices.slice(0,1);
   for (const url of wanted) (kind === 'script' ? scripts : links).add(url);
 }
 for (const [name, item] of Object.entries(all)) {
@@ -62,7 +66,7 @@ for (const [name, item] of Object.entries(all)) {
     }
   }
 }
-const extras = generateExtras(all, witness, priorityNames);
+const extras = generateExtras(all, witness, priorityNames, urgentNames);
 const compactGlobals = compileGlobals(all, witness);
 const inlineWitnesses = [...inlineSignatures].sort().map(v => '/*' + v.replace(/\*\//g,'* /') + '*/').join('');
 const bootstrap = (compactGlobals.source + ';' + extras.bootstrap + ';' + inlineWitnesses).replace(/[\r\n]/g,'');
@@ -101,6 +105,7 @@ await writeFile(OUT + '/404.html', '<!doctype html><html lang="en"><head><meta c
 await writeFile(OUT + '/robots.txt', 'User-agent: *\nDisallow: /\n');
 await writeFile(OUT + '/coverage.json', JSON.stringify(latestCoverage, null, 2));
 await writeFile(OUT + '/coverage-original.json', JSON.stringify(baselineCoverage, null, 2));
-await writeFile(OUT + '/build-info.json', JSON.stringify({ generatedAt: new Date().toISOString(), ruleFiles: files.length, upstreamArchiveBytes: upstreamBytes, technologies: Object.keys(all).length, signatures: { meta: meta.size, scriptSrc: scripts.size, link: links.size, dom: dom.size, text: text.size, js: compactGlobals.stats.globalPaths, scriptText: inlineSignatures.size, cssRules: cssMarkers.rules, regressedPrioritized: regressed.regressed.length }, channels: counts, extras: extras.stats, globals: compactGlobals.stats }, null, 2));
+await writeFile(OUT + '/coverage-second.json', JSON.stringify(secondCoverage, null, 2));
+await writeFile(OUT + '/build-info.json', JSON.stringify({ generatedAt: new Date().toISOString(), ruleFiles: files.length, upstreamArchiveBytes: upstreamBytes, technologies: Object.keys(all).length, signatures: { meta: meta.size, scriptSrc: scripts.size, link: links.size, dom: dom.size, text: text.size, js: compactGlobals.stats.globalPaths, scriptText: inlineSignatures.size, cssRules: cssMarkers.rules, regressedPrioritized: regressed.regressed.length, latestRegressedPrioritized: third.regressed.length }, channels: counts, extras: extras.stats, globals: compactGlobals.stats }, null, 2));
 console.log('Generated ' + Object.keys(all).length + ' technology candidates from ' + files.length + ' upstream JSON files.');
 console.log('index.html bytes: ' + Buffer.byteLength(compactHtml));
