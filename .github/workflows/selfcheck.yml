@@ -1,8 +1,6 @@
 name: Selenium Wappalyzer self-diagnosis
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '17 0,12 * * *'
   workflow_run:
     workflows: ['Verify generated fingerprint page']
     types: [completed]
