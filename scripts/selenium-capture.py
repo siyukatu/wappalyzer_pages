@@ -6,12 +6,14 @@ The raw network HTML, response headers, cookies, visible text, meta, DOM and
 JavaScript signals are handed to the original open-source Wappalyzer analyzer.
 """
 import argparse
+import os
 import base64
 import json
 import pathlib
 import shutil
 import time
 from urllib.parse import urlparse
+from urllib.request import Request, urlopen
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -162,6 +164,27 @@ def main():
         for cookie in driver.get_cookies():
             cookies.setdefault(cookie['name'],[]).append(cookie.get('value',''))
         page['cookies']=cookies
+        # Separate first-party metadata request: this is not a third-party probe.
+        # It identifies stale Cloudflare Pages deployments during push-triggered checks.
+        deployment={}
+        try:
+            url=parsed.scheme+'://'+parsed.hostname+'/build-info.json'
+            request=Request(url,headers={'User-Agent':'wappalyzer-pages-selenium-diagnostics'})
+            with urlopen(request,timeout=15) as reply:
+                if reply.status==200:
+                    raw=reply.read(300000)
+                    info=json.loads(raw)
+                    deployment={
+                        'sourceCommit':info.get('sourceCommit'),
+                        'generatedAt':info.get('generatedAt'),
+                        'technologies':info.get('technologies')
+                    }
+        except (OSError,ValueError,KeyError) as exc:
+            deployment={'error':str(exc)[:160]}
+        expected=os.environ.get('GITHUB_SHA')
+        deployment['expectedCommit']=expected
+        deployment['isLatestCommit']=bool(expected and deployment.get('sourceCommit')==expected)
+        page['deployment']=deployment
         csp=' '.join(header_map.get('content-security-policy',[]))
         page['diagnostics'].update({
             'httpStatus':code,
