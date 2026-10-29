@@ -19,6 +19,9 @@ jobs:
         run: |
           test -s dist/index.html
           test -s dist/_headers
+          test -s dist/404.html
+          test -s dist/robots.txt
+          node -e "const fs=require('fs');if(fs.statSync('dist/index.html').size>25*1024*1024)process.exit(1);const lines=fs.readFileSync('dist/_headers','utf8').split(/\\r?\\n/);if(lines.some(l=>l.length>2000))process.exit(1);console.log('Pages static limits OK')"
           node -e "const b=require('./dist/build-info.json'); if(b.technologies<1000)process.exit(1); console.log(b)"
       - uses: actions/upload-artifact@v4
         with:
