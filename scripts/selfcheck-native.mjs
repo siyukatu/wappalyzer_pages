@@ -83,6 +83,7 @@ const md=[
   '| Latest raw detection records | '+(probe.nativeSampling?.lastRawMatches??'N/A')+' |',
   '| Peak raw detection records | '+(probe.nativeSampling?.peakRawMatches??'N/A')+' |',
   '| Background API available at last query | '+(probe.nativeSampling?.backgroundUnavailableAtEnd?'no; using last valid native result':'yes')+' |',
+  '| Wappalyzer DOM-analysis performance passes | '+(probe.injectionDiagnostics?.domAnalysisPasses??'not observed')+' |',
   '| Scan duration after page load (seconds) | '+(probe.nativeSampling?.durationSeconds??'N/A')+' |',
   '| Sampling stabilized | '+(probe.nativeSampling?.stabilized?'yes':'no; max time reached')+' |',
   '| JS script console mentions | '+(probe.injectionDiagnostics?.jsJsConsoleMentions??'not observed')+' |',
@@ -133,5 +134,6 @@ console.log(JSON.stringify({
   rawFirst:probe.nativeSampling?.firstRawMatches,
   rawLast:probe.nativeSampling?.lastRawMatches,
   stabilized:probe.nativeSampling?.stabilized,
-  domJsConsoleMentions:probe.injectionDiagnostics?.domJsConsoleMentions
+  domJsConsoleMentions:probe.injectionDiagnostics?.domJsConsoleMentions,
+  domAnalysisPasses:probe.injectionDiagnostics?.domAnalysisPasses
 }));
