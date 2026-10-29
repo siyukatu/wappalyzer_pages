@@ -30,14 +30,14 @@ function selectorMarkup(raw) {
   const s = raw.trim();
   if (/[>:~+]/.test(s) || /\s(?![^\[]*\])/.test(s)) return null;
   const tag = s.match(/^[a-z][a-z0-9-]*/i)?.[0] || 'div';
-  if (['html','body','head','meta','title','base','style'].includes(tag.toLowerCase())) return null;
+  if (['html','body','head','meta','title','base'].includes(tag.toLowerCase())) return null;
   const ids = [...s.matchAll(/#([a-z_][\w-]*)/ig)].map(m=>m[1]);
   const classes = [...s.matchAll(/\.([a-z_][\w-]*)/ig)].map(m=>m[1]);
   const attrs = [];
   const re = /\[([a-z_:][\w:.-]*)(?:([*^$|~]?=)\s*(['"]?)([^"'\\\]]*)\3)?\]/ig;
   for (const m of s.matchAll(re)) {
     const key = m[1].toLowerCase();
-    if (key.startsWith('on') || ['srcdoc','style','integrity','nonce'].includes(key)) continue;
+    if (key.startsWith('on') || ['srcdoc','integrity','nonce'].includes(key)) continue;
     // Attribute selectors are represented by their matchable substrings.
     const value = m[4] || 'fingerprint';
     if (!plain(value)) continue;
@@ -59,7 +59,7 @@ function selectHeaders(all, witness, cap = 18000) {
           lower.startsWith('cf-') || lower.startsWith('access-control-')) continue;
       for (const p of values(raw)) {
         if (typeof p !== 'string' || p.length > 700) continue;
-        const v = witness(p);
+        const v = p === '' ? '1' : witness(p);
         if (!plain(v) || v.length > 250 || !/^[\x20-\x7e]+$/.test(v)) continue;
         if (!patterns.has(lower)) patterns.set(lower, { name, rules: [] });
         patterns.get(lower).rules.push({ regexp: p.split('\\;')[0], value: v });
@@ -115,10 +115,33 @@ export function generateExtras(all, witness) {
     const selectors = typeof dr === 'string' || Array.isArray(dr) ? values(dr) : Object.keys(dr || {});
     for (const sel of selectors) {
       domRuleCount++;
-      // Selector lists split on commas outside complex selectors.
       for (const piece of String(sel).split(/,(?![^\[]*\])/)) {
         const markup = selectorMarkup(piece);
         if (markup) dom.add(markup);
+        // Object-form DOM rules frequently impose a regex on attribute
+        // contents, beyond the selector itself. Add a separate valid witness
+        // element, leaving the selector-derived element in place as a fallback.
+        const detail=dr && !Array.isArray(dr) && typeof dr==='object' ? dr[sel] : null;
+        if (!markup || !detail || typeof detail !== 'object') continue;
+        let enhanced=markup;
+        for (const [attr, rule] of entries(detail.attributes)) {
+          if(!/^[a-z][\w:-]*$/i.test(attr) || /^on/i.test(attr) || attr==='srcdoc')continue;
+          const pattern=values(rule).find(x=>typeof x==='string');
+          const val=typeof pattern==='string' && pattern!=='' ? witness(pattern) : '1';
+          if(typeof val!=='string' || val.length>200 || /[\r\n"'<>]/.test(val))continue;
+          const existing=new RegExp('\\s'+attr+'="([^"]*)"','i').exec(enhanced);
+          if(existing) {
+            const old=existing[1].replace(/&amp;/g,'&');
+            const candidates=[val,old+val,val+old,old+'/'+val,val+'/'+old];
+            const base=piece.match(new RegExp('\\['+attr+'\\*?=[\'"]?([^\'"\\]]+)','i'));
+            const valid=candidates.find(c=>{
+              try{return new RegExp(pattern.split('\\;')[0],'i').test(c)&&(!base || c.includes(base[1]));}catch{return false;}
+            });
+            if(!valid)continue;
+            enhanced=enhanced.replace(existing[0],' '+attr+'="'+escaped(valid)+'"');
+          }else enhanced=enhanced.replace(/(\/?>)$/,' '+attr+'="'+escaped(val)+'"$1');
+        }
+        if(enhanced!==markup)dom.add(enhanced);
       }
     }
     for (const rule of values(tech?.html)) {
