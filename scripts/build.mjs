@@ -3,6 +3,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { generateExtras, emitHeaders } from './enrich.mjs';
+import { compileGlobals } from './globals.mjs';
 
 const API = 'https://api.github.com/repos/HTTPArchive/wappalyzer/contents/src/technologies?ref=main';
 const OUT = 'dist';
@@ -94,13 +95,9 @@ for (const [name, item] of Object.entries(all)) {
     }
   }
 }
-const originalBootstrap = unique([...globals]).sort().map((path) => {
-  const parts = path.split('.');
-  const literal = JSON.stringify(parts);
-  return 'try{let o=globalThis;const p=' + literal + ';for(let i=0;i<p.length-1;i++){if(o[p[i]]==null)o[p[i]]={};o=o[p[i]];}if(o[p.at(-1)]==null)o[p.at(-1)]={};}catch{}';
-}).join('\n');
 const extras = generateExtras(all, witness);
-const bootstrap = originalBootstrap + '\n' + extras.bootstrap;
+const compactGlobals = compileGlobals(all, witness);
+const bootstrap = compactGlobals.source + '\n' + extras.bootstrap;
 const hash = createHash('sha256').update(bootstrap).digest('base64');
 /* Static Pages cannot issue a fresh per-response nonce. Use CSP SHA-256 instead.
  * Hide the entire synthetic fingerprint body while keeping its DOM accessible.
@@ -127,6 +124,6 @@ await writeFile(OUT + '/index.html', html);
 await writeFile(OUT + '/_headers', emitHeaders(hash, extras, styleHash));
 await writeFile(OUT + '/404.html', '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><title>404 Not Found</title></head><body><h1>404 Not Found</h1><a href="/">Home</a></body></html>\n');
 await writeFile(OUT + '/robots.txt', 'User-agent: *\nDisallow: /\n');
-await writeFile(OUT + '/build-info.json', JSON.stringify({ generatedAt: new Date().toISOString(), ruleFiles: files.length, technologies: Object.keys(all).length, signatures: { meta: meta.size, scriptSrc: scripts.size, link: links.size, dom: dom.size, text: text.size, js: globals.size }, channels: counts, extras: extras.stats }, null, 2));
+await writeFile(OUT + '/build-info.json', JSON.stringify({ generatedAt: new Date().toISOString(), ruleFiles: files.length, technologies: Object.keys(all).length, signatures: { meta: meta.size, scriptSrc: scripts.size, link: links.size, dom: dom.size, text: text.size, js: globals.size }, channels: counts, extras: extras.stats, globals: compactGlobals.stats }, null, 2));
 console.log('Generated ' + Object.keys(all).length + ' technology candidates from ' + files.length + ' upstream JSON files.');
 console.log('index.html bytes: ' + Buffer.byteLength(html));
