@@ -31,7 +31,7 @@ else:
     binary=shutil.which('google-chrome') or shutil.which('chromium')
     if binary:opts.binary_location=binary
     driver=webdriver.Chrome(options=opts)
-driver.set_script_timeout(18)
+driver.set_script_timeout(35)
 try:
     driver.set_page_load_timeout(120)
     driver.get(URL)
@@ -96,7 +96,7 @@ chrome.tabs.query({}, tabs=>done(tabs.map(x=>({id:x.id,url:x.url,active:x.active
 const reply=arguments[arguments.length-1];
 let completed=false;
 const done=value=>{if(!completed){completed=true;reply(value)}};
-setTimeout(()=>done({results:[],error:'Native background query timed out'}),12000);
+setTimeout(()=>done({results:[],error:'Native background query timed out'}),arguments[0]||12000);
 chrome.tabs.query({},tabs=>{
   const page=tabs.find(t=>(t.url||'').startsWith('https://wappalyzer-technologies.pages.dev/'));
   if(!page){done({results:[],error:'No target Pages tab'});return}
@@ -128,22 +128,9 @@ chrome.tabs.query({},tabs=>{
         const host=data?.hostnames?.['wappalyzer-technologies.pages.dev'];
         const tab=data?.tabResults?.[page.id];
         const raw=Array.isArray(tab?.detections)?tab.detections:[];
-        const byChannel={};
-        const examples={};
-        for(const match of raw){
-          const kind=String(match?.pattern?.type||match?.type||match?.detection?.type||'unknown');
-          byChannel[kind]=(byChannel[kind]||0)+1;
-          if(!examples[kind])examples[kind]=[];
-          if(examples[kind].length<2)examples[kind].push({
-            keys:Object.keys(match||{}).slice(0,12),
-            technology:typeof match?.technology==='string'?match.technology:match?.technology?.name||match?.name||null
-          });
-        }
         done({badge,tabId:page.id,badgeError,storageError,
           hostnameRawMatches:Array.isArray(host?.detections)?host.detections.length:null,
           tabRawMatches:raw.length,
-          rawMatchesByChannel:byChannel,
-          channelExamples:examples,
           hostnameCachedAt:host?.dateTime||null});
       });
     }catch(e){done({badge,tabId:page.id,badgeError,error:String(e)})}
@@ -164,8 +151,6 @@ chrome.tabs.query({},tabs=>{
     raw_last_change=time.monotonic()
     first_raw_count=None
     peak_raw_count=0
-    last_channel_breakdown={}
-    last_channel_examples={}
     last_valid_native_count=None
     first_valid_native_count=None
     last_native_attempt=-100
@@ -189,7 +174,7 @@ chrome.tabs.query({},tabs=>{
         if should_query:
             last_native_attempt=elapsed
             try:
-                response=driver.execute_async_script(native_js)
+                response=driver.execute_async_script(native_js, 26000 if first_valid_native_count is None else 12000)
                 detections=response.get('results') or []
                 native_error=response.get('error')
                 successful=not native_error
@@ -231,9 +216,6 @@ chrome.tabs.query({},tabs=>{
             if last_badge_count!=badge_count:
                 badge_last_change=time.monotonic()
             last_badge_count=badge_count
-        if badge.get('rawMatchesByChannel'):
-            last_channel_breakdown=badge['rawMatchesByChannel']
-            last_channel_examples=badge.get('channelExamples') or {}
         tab_raw=badge.get('tabRawMatches')
         if isinstance(tab_raw,int):
             if first_raw_count is None:first_raw_count=tab_raw
@@ -286,9 +268,7 @@ chrome.tabs.query({},tabs=>{
         'stableAtSeconds':stable_at,
         'stabilized':stable_at is not None,
         'checkpoints':len(timeline),
-        'backgroundUnavailableAtEnd':bool(last_native_error),
-        'rawMatchesByChannel':last_channel_breakdown,
-        'channelExamples':last_channel_examples
+        'backgroundUnavailableAtEnd':bool(last_native_error)
     }
     print('NATIVE_EXTENSION_RESULT',json.dumps({
         'count':best_count,'first':first_valid_native_count,
@@ -296,7 +276,6 @@ chrome.tabs.query({},tabs=>{
         'peakBadge':output['nativeSampling']['peakBadgeCount'],
         'lastBadge':last_badge_count,
         'firstRaw':first_raw_count,'lastRaw':last_raw_count,'peakRaw':peak_raw_count,
-        'rawByChannel':last_channel_breakdown,
         'stabilized':stable_at is not None,
         'durationSeconds':output['nativeSampling']['durationSeconds'],
         'sample':[d['name'] for d in best[:20]],
