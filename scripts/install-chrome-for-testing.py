@@ -23,6 +23,8 @@ def main():
             path.parent.mkdir(parents=True,exist_ok=True)
             with archive.open(entry) as src,open(path,'wb') as dest:
                 while chunk:=src.read(65536):dest.write(chunk)
+            if (entry.external_attr >> 16) & 0o111:
+                path.chmod(path.stat().st_mode|stat.S_IXUSR|stat.S_IXGRP|stat.S_IXOTH)
         filename=DEST/('chrome-linux64/chrome' if name=='chrome' else 'chromedriver-linux64/chromedriver')
         filename.chmod(filename.stat().st_mode|stat.S_IXUSR|stat.S_IXGRP|stat.S_IXOTH)
     print(json.dumps({'chromeForTesting':stable['version'],'binary':str(DEST/'chrome-linux64/chrome'),'chromedriver':str(DEST/'chromedriver-linux64/chromedriver')}))
