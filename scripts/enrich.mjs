@@ -73,7 +73,7 @@ function selectHeaders(all, witness, missingNames = new Set(), urgentNames = new
           lower.startsWith('cf-') || lower.startsWith('access-control-')) continue;
       for (const p of values(raw)) {
         if (typeof p !== 'string' || p.length > 700) continue;
-        const v = p === '' ? '1' : witness(p);
+        const v = typeof p === 'string' && p.split('\\;')[0] === '' ? '1' : witness(p);
         if (!plain(v) || v.length > 250 || !/^[\x20-\x7e]+$/.test(v)) continue;
         if (!patterns.has(lower)) patterns.set(lower, { name, rules: [], missing: new Set() });
         patterns.get(lower).rules.push({ regexp: p.split('\\;')[0], value: v, techName });
