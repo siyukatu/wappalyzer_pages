@@ -33,6 +33,7 @@ for (let i = 0; i < files.length; i += 5) {
 }
 const baseline = JSON.parse(await readFile('data/detected-baseline.json','utf8'));
 const baselineCoverage = coverage(all, baseline);
+const missingBaseline = new Set(baselineCoverage.missing.map(x => x.name));
 const counts = {};
 const inlineSignatures = new Set();
 const meta = new Map(), scripts = new Set(), links = new Set(), dom = new Set(), text = new Set(), globals = new Set(), htmlAttrs = new Map();
@@ -79,7 +80,7 @@ for (const [name, item] of Object.entries(all)) {
     }
   }
 }
-const extras = generateExtras(all, witness);
+const extras = generateExtras(all, witness, missingBaseline);
 const compactGlobals = compileGlobals(all, witness);
 const inlineWitnesses = [...inlineSignatures].sort().map(v => '/* wappalyzer-scripts-signature: ' + v.replace(/\*\//g,'* /') + ' */').join('\n');
 const bootstrap = compactGlobals.source + '\n' + extras.bootstrap + '\n' + inlineWitnesses;
