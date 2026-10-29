@@ -38,6 +38,18 @@ def get(url, token):
         return response.read(15*1024*1024)
 
 def main():
+    cached=pathlib.Path('.selfcheck/cached-report.json')
+    if cached.is_file():
+        try:
+            data=json.loads(cached.read_text(encoding='utf-8'))
+            if data.get('technologies') and data.get('engine'):
+                pathlib.Path('.selfcheck/previous-report.json').write_text(
+                    json.dumps(data,ensure_ascii=False,separators=(',',':')),encoding='utf-8')
+                print('Restored prior Selenium run from GitHub Actions cache ('+
+                      str(len(data['technologies']))+' technologies).')
+                return
+        except (ValueError,OSError,KeyError) as exc:
+            print('Could not read the previous Actions cache:',type(exc).__name__)
     token=os.getenv('GITHUB_TOKEN','')
     repo=os.getenv('GITHUB_REPOSITORY','')
     if not token or '/' not in repo:
