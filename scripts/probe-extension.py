@@ -56,6 +56,7 @@ try:
     extid=ids[0]
     # Activate the real extension's own UI; never evaluate or emulate its matching engine.
     driver.switch_to.new_window('tab')
+    popup_window=driver.current_window_handle
     driver.get('chrome-extension://'+extid+'/html/popup.html')
     time.sleep(3)
     print('POPUP_URL',driver.current_url)
@@ -205,7 +206,7 @@ return performance.getEntriesByType('resource')
     except Exception as exc:
         print('EXTENSION_INJECTION_DIAGNOSTIC_ERROR',str(exc)[:250])
     finally:
-        driver.switch_to.window(driver.window_handles[-1])
+        driver.switch_to.window(popup_window)
     output['injectionDiagnostics']={
         'consoleSignals':console_signals[-50:],
         'resourceSignals':resource_signals,
