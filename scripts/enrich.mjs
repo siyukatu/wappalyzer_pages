@@ -50,9 +50,9 @@ function selectorMarkup(raw) {
   const safeTag = /^[a-z][a-z0-9-]{0,35}$/i.test(tag) ? tag : 'div';
   return voids.has(safeTag) ? '<' + safeTag + as + '>' : '<' + safeTag + as + '></' + safeTag + '>';
 }
-function selectHeaders(all, witness, cap = 18000) {
+function selectHeaders(all, witness, missingNames = new Set(), cap = 18000) {
   const patterns = new Map();
-  for (const tech of Object.values(all)) {
+  for (const [techName, tech] of Object.entries(all)) {
     for (const [name, raw] of entries(tech?.headers)) {
       const lower = name.toLowerCase();
       if (!/^[a-z][a-z0-9-]{0,60}$/i.test(name) || SKIP_HEADERS.has(lower) ||
@@ -61,13 +61,14 @@ function selectHeaders(all, witness, cap = 18000) {
         if (typeof p !== 'string' || p.length > 700) continue;
         const v = p === '' ? '1' : witness(p);
         if (!plain(v) || v.length > 250 || !/^[\x20-\x7e]+$/.test(v)) continue;
-        if (!patterns.has(lower)) patterns.set(lower, { name, rules: [] });
+        if (!patterns.has(lower)) patterns.set(lower, { name, rules: [], missing: new Set() });
         patterns.get(lower).rules.push({ regexp: p.split('\\;')[0], value: v });
+        if (missingNames.has(techName)) patterns.get(lower).missing.add(techName);
       }
     }
   }
   const candidates = [];
-  for (const {name, rules} of patterns.values()) {
+  for (const {name, rules, missing} of patterns.values()) {
     const regexes = rules.map(({regexp})=>{try{return new RegExp(regexp,'i')}catch{return null}}).filter(Boolean);
     if (!regexes.length) continue;
     let best = '';
@@ -92,22 +93,22 @@ function selectHeaders(all, witness, cap = 18000) {
       if (next === best) break;
       best = next; score = count;
     }
-    if (best) candidates.push({name, best, score, size: name.length+best.length+4});
+    if (best) candidates.push({name, best, score, missingCount:missing.size, size: name.length+best.length+4});
   }
   // Valuable uncommon header fields are retained as long as the practical
   // response-size budget holds. A huge response can fail at upstream proxies.
-  candidates.sort((a,b) => b.score / b.size - a.score / a.size || a.name.localeCompare(b.name));
+  candidates.sort((a,b) => (b.score + b.missingCount*3)/b.size - (a.score + a.missingCount*3)/a.size || a.name.localeCompare(b.name));
   const lines = [];
   let total = 0, score = 0;
   for (const c of candidates) {
-    if (total + c.size > cap || c.size > 1950 || lines.length >= 150) continue;
+    if (total + c.size > cap || c.size > 1950 || lines.length >= 220) continue;
     lines.push('  ' + c.name + ': ' + c.best);
     total += c.size;
     score += c.score;
   }
   return {lines, count:lines.length, approxMatches:score, bytes:total};
 }
-export function generateExtras(all, witness) {
+export function generateExtras(all, witness, missingNames = new Set()) {
   const dom = new Set(), comments = new Set(), cookieValues = new Map(), js = new Map();
   let domRuleCount = 0, cookieRuleCount=0;
   for (const tech of Object.values(all)) {
@@ -159,7 +160,7 @@ export function generateExtras(all, witness) {
   const cookieList = [...cookieValues].slice(0,90);
   const cookieScript = 'for(const [name,value] of ' + JSON.stringify(cookieList) +
     '){try{document.cookie=name+"="+encodeURIComponent(value)+"; Path=/; SameSite=Lax";}catch{}}\n';
-  const headers = selectHeaders(all,witness);
+  const headers = selectHeaders(all,witness,missingNames);
   const body = '<!-- Additional simple DOM selectors generated from upstream rules -->\n' + [...dom].join('\n') +
     '\n<!-- Literal HTML-regex witnesses (inert comments; not active code) -->\n' +
     [...comments].map(c=>'<!-- signature: ' + c + ' -->').join('\n');
