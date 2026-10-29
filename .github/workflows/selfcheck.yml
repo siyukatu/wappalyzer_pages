@@ -29,8 +29,12 @@ jobs:
         run: |
           (google-chrome --version || chromium --version || true)
           (chromedriver --version || true)
-      - name: Fetch current Wappalyzer detection core and all rule files
+      - name: Fetch current Chrome Web Store extension and its complete fingerprints
+        env:
+          CRX_EXTRACT_ZIP_PATH: .selfcheck/wappalyzer.zip
         run: node scripts/selfcheck-prepare.mjs
+      - name: Unpack actual Wappalyzer extension for Selenium
+        run: python scripts/selfcheck-unpack.py
       - name: Install Selenium
         run: python -m pip install 'selenium>=4.35,<5'
       - name: Restore prior diagnosis from first-party GitHub Actions cache
