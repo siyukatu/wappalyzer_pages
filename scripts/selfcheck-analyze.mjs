@@ -10,6 +10,10 @@ const [observed, rules, categories, old, gains, losses, third] = await Promise.a
   load('data/detected-baseline.json'),load('data/detection-gains.json'),
   load('data/detection-regressions.json'),load('data/detection-delta-3.json')
 ]);
+const ruleSource=await load(folder+'/rule-source.json');
+const currentSourceMatchesDeployment=Boolean(
+  ruleSource.sha256 && observed.deployment?.crxSha256===ruleSource.sha256
+);
 const engine = require('../'+folder+'/engine.cjs');
 engine.setCategories(categories);
 engine.setTechnologies(rules);
@@ -120,6 +124,8 @@ const result={
     seleniumOnlyCount:gained.length,manualCsvOnlyCount:missing.length,
     seleniumOnly:gained,manualCsvOnly:missing},
   seleniumTrend,
+  ruleSource,
+  currentSourceMatchesDeployment,
   deployment:observed.deployment||{},
   browser:observed.diagnostics,
   engineEvidence:{upstreamTechnologyCount:all.length,rawMatches:qualified.length,jsSignals,domSignals,matchedChannels},
@@ -133,6 +139,8 @@ const md=[
   '**URL:** '+observed.url,
   '**When:** '+result.generatedAt,
   '**Deployed commit:** '+(observed.deployment?.sourceCommit||'not available'),
+  '**Wappalyzer CRX used:** '+ruleSource.version+' ('+ruleSource.technologies+' technology definitions)',
+  '**CRX matches deployed snapshot:** '+(currentSourceMatchesDeployment?'yes':'not verified (different deployment or unpublished CRX)'),
   '**Matches current checked-out commit:** '+(observed.deployment?.isLatestCommit?'yes':'not confirmed (deployment may be pending)'),
   '**Detector:** HTTPArchive original open-source Wappalyzer core with live Selenium observations.',
   '',
