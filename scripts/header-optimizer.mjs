@@ -69,3 +69,52 @@ export function optimizeSharedHeader(rules,current) {
   return {value:best,baseline:before.technologies,matched:bestScore.technologies,
     names:bestScore.names};
 }
+
+
+// Add more fingerprints without displacing an already-matching end-anchored
+// rule. Via: "[\d.-]+ vegur$" (Heroku) is a concrete case: concatenating
+// after "vegur" loses Heroku even when other technologies are gained.
+export function augmentBeforeAnchoredSuffix(rules,current,maxLength=1700) {
+  const compiled=[];
+  for(const {regexp,value,techName} of rules){
+    try{
+      const regex=new RegExp(regexp,'i');
+      if(regex.test(value))compiled.push({regex,value,name:techName,
+        anchoredEnd:/(?<!\\)\$$/.test(regexp)});
+    }catch{}
+  }
+  const matched=value=>{
+    const names=new Set();
+    for(const item of compiled) if(item.regex.test(value))names.add(item.name);
+    return names;
+  };
+  const protectedNames=matched(current);
+  const suffix=compiled.filter(item=>item.anchoredEnd&&item.regex.test(current)&&current.endsWith(item.value))
+    .sort((a,b)=>b.value.length-a.value.length)[0];
+  if(!suffix)return{value:current,before:protectedNames.size,after:protectedNames.size,added:[]};
+  const suffixText=suffix.value;
+  let body=current.slice(0,-suffixText.length).replace(/,\s*$/,'');
+  let best=current;
+  let bestNames=protectedNames;
+  const witnesses=[...new Set(compiled.map(x=>x.value))]
+    .filter(v=>v && v!==suffixText && v.length<250)
+    .sort((a,b)=>a.length-b.length);
+  for(let round=0;round<25;round++){
+    let next=null,top=bestNames;
+    for(const v of witnesses){
+      if(body.includes(v))continue;
+      const trial=(body?body+', ':'')+v+', '+suffixText;
+      if(trial.length>maxLength)continue;
+      const hits=matched(trial);
+      if([...protectedNames].some(name=>!hits.has(name)))continue;
+      if(hits.size>top.size||(hits.size===top.size&&next&&trial.length<next.value.length)){
+        if(hits.size<=bestNames.size)continue;
+        next={value:trial,body:(body?body+', ':'')+v,names:hits};top=hits;
+      }
+    }
+    if(!next)break;
+    best=next.value;body=next.body;bestNames=next.names;
+  }
+  return {value:best,before:protectedNames.size,after:bestNames.size,
+    added:[...bestNames].filter(x=>!protectedNames.has(x))};
+}
