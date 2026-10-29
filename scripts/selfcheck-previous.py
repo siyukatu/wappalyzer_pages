@@ -6,7 +6,26 @@ import os
 import pathlib
 import urllib.error
 import urllib.request
+from urllib.parse import urlsplit
 import zipfile
+
+class SafeArtifactRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        host=(urlsplit(newurl).hostname or '').lower()
+        trusted=(host=='api.github.com' or host.endswith('.githubusercontent.com') or
+                 host.endswith('.github.com') or host.endswith('.blob.core.windows.net'))
+        if not trusted or urlsplit(newurl).scheme!='https':
+            raise urllib.error.URLError('Unexpected GitHub artifact redirect destination')
+        followed=super().redirect_request(req,fp,code,msg,headers,newurl)
+        # The GitHub API response redirects to a pre-signed storage URL. Never
+        # forward the repository token to the storage provider.
+        if host!='api.github.com':
+            followed.remove_header('Authorization')
+            followed.remove_header('X-github-api-version')
+        return followed
+
+_opener=urllib.request.build_opener(SafeArtifactRedirect)
+
 
 def get(url, token):
     req=urllib.request.Request(url,headers={
@@ -15,7 +34,7 @@ def get(url, token):
       "X-GitHub-Api-Version":"2022-11-28",
       "User-Agent":"wappalyzer-pages-selenium-selfcheck"
     })
-    with urllib.request.urlopen(req,timeout=30) as response:
+    with _opener.open(req,timeout=30) as response:
         return response.read(15*1024*1024)
 
 def main():
@@ -45,10 +64,10 @@ def main():
                           ' ('+str(len(data['technologies']))+' technologies).')
                     return
             except (ValueError,KeyError,urllib.error.URLError,zipfile.BadZipFile) as exc:
-                print('Skipped invalid previous diagnostic artifact:',type(exc).__name__)
+                print('Skipped previous artifact',a.get('id'),':',type(exc).__name__,str(exc)[:160])
         print('No earlier compatible Selenium artifact; this run establishes the baseline.')
     except (ValueError,urllib.error.URLError,TimeoutError) as exc:
-        print('Previous Selenium artifact lookup unavailable:',type(exc).__name__)
+        print('Previous Selenium artifact lookup unavailable:',type(exc).__name__,str(exc)[:160])
 
 if __name__=='__main__':
     main()
