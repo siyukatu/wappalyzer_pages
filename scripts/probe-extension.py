@@ -286,16 +286,23 @@ chrome.tabs.query({},tabs=>{
     # detections: the resolved technology names are deduplicated above.
     console_signals=[]
     resource_signals=[]
+    performance_measures=[]
     try:
         driver.switch_to.window(page_window)
         for entry in driver.get_log('browser'):
             msg=entry.get('message','')
-            if re.search(r'(?:dom|js)\.js|chrome-extension:|wappalyzer:response|wappalyzer:detach',msg,re.I):
+            if re.search(r'chrome-extension://[a-p]{32}/js/(?:dom|js)\.js|wappalyzer:response|wappalyzer:detach',msg,re.I):
                 console_signals.append({
                     'level':entry.get('level'),
                     'timestamp':entry.get('timestamp'),
                     'message':msg[:450]
                 })
+        performance_measures=driver.execute_script("""
+return performance.getEntriesByType('measure')
+  .filter(m=>/Wappalyzer/i.test(m.name))
+  .map(m=>({name:m.name,startTime:m.startTime,duration:m.duration}))
+  .slice(-80)
+""")
         resource_signals=driver.execute_script("""
 return performance.getEntriesByType('resource')
   .filter(r=>/chrome-extension:|\/(?:dom|js)\.js(?:\?|$)/i.test(r.name))
@@ -309,13 +316,17 @@ return performance.getEntriesByType('resource')
     output['injectionDiagnostics']={
         'consoleSignals':console_signals[-70:],
         'resourceSignals':resource_signals,
-        'domJsConsoleMentions':sum('dom.js' in x['message'].lower() for x in console_signals),
-        'jsJsConsoleMentions':sum('js.js' in x['message'].lower() for x in console_signals)
+        'performanceMeasures':performance_measures,
+        'domAnalysisPasses':sum(m.get('name')=='Wappalyzer: getDom' for m in performance_measures),
+        'domJsConsoleMentions':sum(bool(re.search(r'chrome-extension://[a-p]{32}/js/dom\.js',x['message'],re.I)) for x in console_signals),
+        'jsJsConsoleMentions':sum(bool(re.search(r'chrome-extension://[a-p]{32}/js/js\.js',x['message'],re.I)) for x in console_signals)
     }
     print('NATIVE_INJECTION_DIAGNOSTICS',json.dumps({
         'domJsConsoleMentions':output['injectionDiagnostics']['domJsConsoleMentions'],
         'jsJsConsoleMentions':output['injectionDiagnostics']['jsJsConsoleMentions'],
-        'scriptResourceSignals':len(resource_signals)
+        'scriptResourceSignals':len(resource_signals),
+        'domAnalysisPasses':output['injectionDiagnostics']['domAnalysisPasses'],
+        'performanceMeasures':len(performance_measures)
     }),flush=True)
     output['popupText']=driver.execute_script('return document.body?.innerText||""')
     output['popupHtml']=driver.page_source[:30000]
