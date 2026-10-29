@@ -96,7 +96,7 @@ chrome.tabs.query({}, tabs=>done(tabs.map(x=>({id:x.id,url:x.url,active:x.active
 const reply=arguments[arguments.length-1];
 let completed=false;
 const done=value=>{if(!completed){completed=true;reply(value)}};
-setTimeout(()=>done({results:[],error:'Extension background query timed out after 12 seconds'}),12000);
+setTimeout(()=>done({results:[],error:'Native background query timed out'}),12000);
 chrome.tabs.query({},tabs=>{
   const page=tabs.find(t=>(t.url||'').startsWith('https://wappalyzer-technologies.pages.dev/'));
   if(!page){done({results:[],error:'No target Pages tab'});return}
@@ -108,6 +108,34 @@ chrome.tabs.query({},tabs=>{
   );
 });
 """
+    # The toolbar badge is set by the extension's own setIcon() implementation
+    # from the already-resolved technology list. It can be read independently
+    # of its overloaded background message handler. The session cache provides
+    # additional observation, not an alternative detection engine.
+    badge_js = """
+const reply=arguments[arguments.length-1];
+let called=false;
+const done=value=>{if(!called){called=true;reply(value)}};
+setTimeout(()=>done({error:'Badge/session query timeout'}),4500);
+chrome.tabs.query({},tabs=>{
+  const page=tabs.find(t=>(t.url||'').startsWith('https://wappalyzer-technologies.pages.dev/'));
+  if(!page){done({error:'Pages tab unavailable'});return}
+  chrome.action.getBadgeText({tabId:page.id},badge=>{
+    const badgeError=chrome.runtime.lastError?.message||null;
+    try{
+      chrome.storage.session.get(['hostnames','tabResults'],data=>{
+        const storageError=chrome.runtime.lastError?.message||null;
+        const host=data?.hostnames?.['wappalyzer-technologies.pages.dev'];
+        const tab=data?.tabResults?.[page.id];
+        done({badge,tabId:page.id,badgeError,storageError,
+          hostnameRawMatches:Array.isArray(host?.detections)?host.detections.length:null,
+          tabRawMatches:Array.isArray(tab?.detections)?tab.detections.length:null,
+          hostnameCachedAt:host?.dateTime||null});
+      });
+    }catch(e){done({badge,tabId:page.id,badgeError,error:String(e)})}
+  });
+});
+"""
     timeline=[]
     seen=set()
     previous=set()
@@ -115,74 +143,122 @@ chrome.tabs.query({},tabs=>{
     best_count=0
     stable_at=None
     last_change=time.monotonic()
-    native_error=None
+    badge_last_change=time.monotonic()
+    last_badge=None
+    last_badge_count=None
+    last_valid_native_count=None
+    first_valid_native_count=None
+    last_native_attempt=-100
+    last_native_error=None
     checkpoints=[0,5,10,15,22,30,40,50,60,75,90,105]
     for scheduled_second in checkpoints:
         if time.monotonic()-page_loaded_at>132:
             print('NATIVE_SCAN_DEADLINE',round(time.monotonic()-page_loaded_at,2),flush=True)
             break
         delay=scheduled_second-(time.monotonic()-page_loaded_at)
-        if delay>0:
-            time.sleep(delay)
+        if delay>0:time.sleep(delay)
         elapsed=round(time.monotonic()-page_loaded_at,2)
-        try:
-            response=driver.execute_async_script(native_js)
-            detections=response.get('results') or []
-            native_error=response.get('error')
-        except Exception as exc:
-            detections=[]
-            native_error=str(exc)[:250]
+        # Frequent calls into a busy service worker can worsen the delay.
+        # Back off after a native message timeout while still monitoring the
+        # user-visible Wappalyzer badge through Chrome's action API.
+        should_query=(last_native_error is None or
+                      elapsed-last_native_attempt>=25)
+        native_error=None
+        successful=False
         distinct={}
-        for item in detections:
-            if not isinstance(item,dict) or not item.get('name'):
-                continue
-            key=unicodedata.normalize('NFKC',str(item['name'])).casefold()
-            distinct[key]=item
-        current=set(distinct)
-        additions=current-previous
-        removals=previous-current
-        seen.update(current)
-        if len(current)>=best_count and not native_error:
-            best=list(distinct.values())
-            best_count=len(current)
-        if previous!=current:
-            last_change=time.monotonic()
-        previous=current
+        if should_query:
+            last_native_attempt=elapsed
+            try:
+                response=driver.execute_async_script(native_js)
+                detections=response.get('results') or []
+                native_error=response.get('error')
+                successful=not native_error
+            except Exception as exc:
+                detections=[]
+                native_error=str(exc)[:250]
+            if successful:
+                for item in detections:
+                    if not isinstance(item,dict) or not item.get('name'):
+                        continue
+                    key=unicodedata.normalize('NFKC',str(item['name'])).casefold()
+                    distinct[key]=item
+                last_native_error=None
+            else:
+                last_native_error=native_error
+        current=set(distinct) if successful else previous
+        additions=current-previous if successful else set()
+        removals=previous-current if successful else set()
+        if successful:
+            seen.update(current)
+            last_valid_native_count=len(current)
+            if first_valid_native_count is None:
+                first_valid_native_count=len(current)
+            if len(current)>=best_count:
+                best=list(distinct.values())
+                best_count=len(current)
+            if previous!=current:
+                last_change=time.monotonic()
+            previous=current
+
+        badge={}
+        try:
+            badge=driver.execute_async_script(badge_js)
+        except Exception as exc:
+            badge={'error':str(exc)[:250]}
+        badge_text=str(badge.get('badge') or '')
+        badge_count=int(badge_text) if badge_text.isdecimal() else None
+        if badge_count is not None:
+            if last_badge_count!=badge_count:
+                badge_last_change=time.monotonic()
+            last_badge_count=badge_count
         quiet=round(time.monotonic()-last_change,2)
+        badge_quiet=round(time.monotonic()-badge_last_change,2)
         point={
             'secondsAfterPageLoad':elapsed,
-            'detected':len(current),
+            'detected':last_valid_native_count,
+            'nativeQueryOk':successful,
             'newNames':len(additions),
             'lostNames':len(removals),
             'cumulativeDistinct':len(seen),
             'quietSeconds':quiet,
-            'error':native_error,
+            'badgeText':badge_text,
+            'badgeCount':badge_count,
+            'badgeQuietSeconds':badge_quiet,
+            'hostnameRawMatches':badge.get('hostnameRawMatches'),
+            'tabRawMatches':badge.get('tabRawMatches'),
+            'error':native_error or badge.get('error') or badge.get('storageError'),
             'addedExamples':[distinct[k]['name'] for k in sorted(additions)[:15]]
         }
         timeline.append(point)
         print('NATIVE_DETECTION_TIMELINE',json.dumps(point,ensure_ascii=False),flush=True)
-        # Never stop in the first seconds of a page visit: Wappalyzer's delayed
-        # js.js pass and repeated dom.js analyses must have time to complete.
-        if elapsed>=60 and quiet>=20 and len(timeline)>=4 and not native_error:
+        # The last two badge observations are at least 20 seconds apart and
+        # must agree; settle no sooner than a minute after page load.
+        if (elapsed>=60 and badge_count is not None and
+            badge_quiet>=20 and len(timeline)>=4 and best_count>=1000):
             stable_at=elapsed
             break
     output['nativeTimeline']=timeline
     output['nativeDetections']=best
-    output['nativeError']=None if best_count>=1000 else native_error
+    output['nativeError']=None if best_count>=1000 else last_native_error
     output['nativeSampling']={
-        'firstCount':timeline[0]['detected'] if timeline else 0,
-        'lastCount':timeline[-1]['detected'] if timeline else 0,
+        'firstCount':first_valid_native_count,
+        'lastCount':last_valid_native_count,
         'peakCount':best_count,
         'cumulativeDistinct':len(seen),
+        'firstBadgeCount':next((p['badgeCount'] for p in timeline if p['badgeCount'] is not None),None),
+        'lastBadgeCount':last_badge_count,
+        'peakBadgeCount':max((p['badgeCount'] or 0 for p in timeline),default=0),
         'durationSeconds':timeline[-1]['secondsAfterPageLoad'] if timeline else 0,
         'stableAtSeconds':stable_at,
         'stabilized':stable_at is not None,
-        'checkpoints':len(timeline)
+        'checkpoints':len(timeline),
+        'backgroundUnavailableAtEnd':bool(last_native_error)
     }
     print('NATIVE_EXTENSION_RESULT',json.dumps({
-        'count':best_count,'first':output['nativeSampling']['firstCount'],
-        'last':output['nativeSampling']['lastCount'],
-        'peak':best_count,'stabilized':stable_at is not None,
+        'count':best_count,'first':first_valid_native_count,
+        'last':last_valid_native_count,
+        'peakBadge':output['nativeSampling']['peakBadgeCount'],
+        'lastBadge':last_badge_count,'stabilized':stable_at is not None,
         'durationSeconds':output['nativeSampling']['durationSeconds'],
         'sample':[d['name'] for d in best[:20]],
         'error':output['nativeError']
