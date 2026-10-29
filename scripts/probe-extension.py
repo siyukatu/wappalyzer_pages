@@ -127,9 +127,23 @@ chrome.tabs.query({},tabs=>{
         const storageError=chrome.runtime.lastError?.message||null;
         const host=data?.hostnames?.['wappalyzer-technologies.pages.dev'];
         const tab=data?.tabResults?.[page.id];
+        const raw=Array.isArray(tab?.detections)?tab.detections:[];
+        const byChannel={};
+        const examples={};
+        for(const match of raw){
+          const kind=String(match?.pattern?.type||match?.type||match?.detection?.type||'unknown');
+          byChannel[kind]=(byChannel[kind]||0)+1;
+          if(!examples[kind])examples[kind]=[];
+          if(examples[kind].length<2)examples[kind].push({
+            keys:Object.keys(match||{}).slice(0,12),
+            technology:typeof match?.technology==='string'?match.technology:match?.technology?.name||match?.name||null
+          });
+        }
         done({badge,tabId:page.id,badgeError,storageError,
           hostnameRawMatches:Array.isArray(host?.detections)?host.detections.length:null,
-          tabRawMatches:Array.isArray(tab?.detections)?tab.detections.length:null,
+          tabRawMatches:raw.length,
+          rawMatchesByChannel:byChannel,
+          channelExamples:examples,
           hostnameCachedAt:host?.dateTime||null});
       });
     }catch(e){done({badge,tabId:page.id,badgeError,error:String(e)})}
@@ -150,6 +164,8 @@ chrome.tabs.query({},tabs=>{
     raw_last_change=time.monotonic()
     first_raw_count=None
     peak_raw_count=0
+    last_channel_breakdown={}
+    last_channel_examples={}
     last_valid_native_count=None
     first_valid_native_count=None
     last_native_attempt=-100
@@ -215,6 +231,9 @@ chrome.tabs.query({},tabs=>{
             if last_badge_count!=badge_count:
                 badge_last_change=time.monotonic()
             last_badge_count=badge_count
+        if badge.get('rawMatchesByChannel'):
+            last_channel_breakdown=badge['rawMatchesByChannel']
+            last_channel_examples=badge.get('channelExamples') or {}
         tab_raw=badge.get('tabRawMatches')
         if isinstance(tab_raw,int):
             if first_raw_count is None:first_raw_count=tab_raw
@@ -267,7 +286,9 @@ chrome.tabs.query({},tabs=>{
         'stableAtSeconds':stable_at,
         'stabilized':stable_at is not None,
         'checkpoints':len(timeline),
-        'backgroundUnavailableAtEnd':bool(last_native_error)
+        'backgroundUnavailableAtEnd':bool(last_native_error),
+        'rawMatchesByChannel':last_channel_breakdown,
+        'channelExamples':last_channel_examples
     }
     print('NATIVE_EXTENSION_RESULT',json.dumps({
         'count':best_count,'first':first_valid_native_count,
@@ -275,6 +296,7 @@ chrome.tabs.query({},tabs=>{
         'peakBadge':output['nativeSampling']['peakBadgeCount'],
         'lastBadge':last_badge_count,
         'firstRaw':first_raw_count,'lastRaw':last_raw_count,'peakRaw':peak_raw_count,
+        'rawByChannel':last_channel_breakdown,
         'stabilized':stable_at is not None,
         'durationSeconds':output['nativeSampling']['durationSeconds'],
         'sample':[d['name'] for d in best[:20]],
