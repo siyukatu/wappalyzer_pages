@@ -84,8 +84,6 @@ function selectHeaders(all, witness, missingNames = new Set(), urgentNames = new
   }
   const candidates = [];
   let sharedHeaderDiagnostics = null;
-  const extraSharedHeaderDiagnostics = {};
-  const compositeFields = new Set(['x-powered-by','server','via','powered-by','x-generator','x-cache']);
   for (const {name, rules, missing} of patterns.values()) {
     const regexes = rules.map(({regexp,techName})=>{try{return {regex:new RegExp(regexp,'i'),weight:urgentNames.has(techName)?6:missingNames.has(techName)?3:1}}catch{return null}}).filter(Boolean);
     if (!regexes.length) continue;
@@ -111,15 +109,12 @@ function selectHeaders(all, witness, missingNames = new Set(), urgentNames = new
       if (next === best) break;
       best = next; score = count;
     }
-    const headerName=name.toLowerCase();
-    if (compositeFields.has(headerName)) {
+    if (name.toLowerCase()==='x-powered-by') {
       const improved=optimizeSharedHeader(
         rules.map(r=>({...r,weight:urgentNames.has(r.techName)?6:missingNames.has(r.techName)?3:1})),best);
-      const evidence={before:improved.baseline,after:improved.matched,
+      sharedHeaderDiagnostics={before:improved.baseline,after:improved.matched,
         extraTechnologies:Math.max(0,improved.matched-improved.baseline),
         techNames:improved.names};
-      if(headerName==='x-powered-by')sharedHeaderDiagnostics=evidence;
-      else extraSharedHeaderDiagnostics[headerName]=evidence;
       if(improved.matched>improved.baseline) {
         best=improved.value;
         score=coverage(best);
@@ -138,7 +133,7 @@ function selectHeaders(all, witness, missingNames = new Set(), urgentNames = new
     total += c.size;
     score += c.score;
   }
-  return {lines, count:lines.length, approxMatches:score, bytes:total, sharedHeaderDiagnostics, extraSharedHeaderDiagnostics};
+  return {lines, count:lines.length, approxMatches:score, bytes:total, sharedHeaderDiagnostics};
 }
 export function generateExtras(all, witness, missingNames = new Set(), urgentNames = new Set(), preserveNames = new Set()) {
   const dom = new Set(), comments = new Set(), cookieValues = new Map(), js = new Map(), domProperties = new Map();
@@ -258,8 +253,7 @@ export function generateExtras(all, witness, missingNames = new Set(), urgentNam
     body, headers,
     stats: {additionalDom:dom.size, htmlComments:comments.size, syntheticDomProperties:domProperties.size, cookies:cookieList.length, partitionedCookies:partitionedList.length, cookieOnlyChosen, nativePreservedChosen, upstreamDomSelectors:domRuleCount, upstreamCookieRules:cookieRuleCount,
       syntheticHeaderFields: headers.count, syntheticHeaderMatches:headers.approxMatches, syntheticHeaderBytes: headers.bytes,
-      sharedHeaderDiagnostics:headers.sharedHeaderDiagnostics,
-      extraSharedHeaderDiagnostics:headers.extraSharedHeaderDiagnostics}
+      sharedHeaderDiagnostics:headers.sharedHeaderDiagnostics}
   };
 }
 export function emitHeaders(hash, extras, styleHash) {
