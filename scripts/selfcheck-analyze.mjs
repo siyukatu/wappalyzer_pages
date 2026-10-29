@@ -82,6 +82,22 @@ const technologies=resolved.map(item=>({
     .map(x=>x.pattern.type))].sort()
 })).sort((a,b)=>a.name.localeCompare(b.name));
 const detected=new Map(technologies.map(x=>[normalize(x.name),x.name]));
+let previousSelfcheck=null;
+try { previousSelfcheck=JSON.parse(await readFile(folder+'/previous-report.json','utf8')); }
+catch(error){ if(error.code!=='ENOENT')console.warn('Invalid previous selfcheck:',String(error)); }
+const previousSeleniumDetected=new Map(
+  (previousSelfcheck?.technologies||[]).map(x=>[normalize(x.name),x.name])
+);
+const seleniumTrend=previousSelfcheck && previousSeleniumDetected.size
+  ? {
+      previousTimestamp:previousSelfcheck.generatedAt,
+      previousCount:previousSeleniumDetected.size,
+      currentCount:technologies.length,
+      netChange:technologies.length-previousSeleniumDetected.size,
+      gained:[...detected].filter(([key])=>!previousSeleniumDetected.has(key)).map(([,name])=>name).sort(),
+      lost:[...previousSeleniumDetected].filter(([key])=>!detected.has(key)).map(([,name])=>name).sort()
+    }
+  : null;
 const prior=new Map(old.detected.map(n=>[normalize(n),n]));
 for(const n of losses.regressed)prior.delete(normalize(n));
 for(const n of gains.newDetected)prior.set(normalize(n),n);
@@ -103,6 +119,7 @@ const result={
     netDifference:technologies.length-prior.size,
     seleniumOnlyCount:gained.length,manualCsvOnlyCount:missing.length,
     seleniumOnly:gained,manualCsvOnly:missing},
+  seleniumTrend,
   browser:observed.diagnostics,
   engineEvidence:{upstreamTechnologyCount:all.length,rawMatches:qualified.length,jsSignals,domSignals,matchedChannels},
   remaining:{count:sourceMissing.length,byChannel,technologies:sourceMissing},
@@ -120,6 +137,8 @@ const md=[
   '| Metric | Count |','| --- | ---: |',
   '| Previous manual CSV | '+prior.size+' |',
   '| Selenium-inferred technologies | '+technologies.length+' |',
+  '| Prior Selenium result | '+(seleniumTrend?seleniumTrend.previousCount:'first run')+' |',
+  '| Selenium-to-Selenium net change | '+(seleniumTrend?((seleniumTrend.netChange>=0?'+':'')+seleniumTrend.netChange):'not yet available')+' |',
   '| Found only by Selenium | '+gained.length+' |',
   '| Found only in manual CSV | '+missing.length+' |',
   '| Missing upstream rule matches | '+sourceMissing.length+' |',
@@ -129,7 +148,13 @@ const md=[
   '| CSP-blocked browser requests | '+observed.diagnostics.cspBlockedRequests+' |',
   '| Third-party successful responses | '+observed.diagnostics.thirdPartyResponses.length+' |','',
   '**CSP verified:** '+observed.diagnostics.cspBlocksExternal,
+  '**Selenium-to-Selenium newly detected:** '+(seleniumTrend?seleniumTrend.gained.length:'N/A'),
+  '**Selenium-to-Selenium lost detections:** '+(seleniumTrend?seleniumTrend.lost.length:'N/A'),
   '**Concealment applied:** '+observed.diagnostics.cspStyleApplied,'',
+  '## Trend: technology names gained since previous Selenium scan (first 50)','',
+  ...(seleniumTrend?seleniumTrend.gained.slice(0,50).map(x=>'- '+x):['No previous Selenium result yet.']),'',
+  '## Trend: technology names lost since previous Selenium scan (first 50)','',
+  ...(seleniumTrend?seleniumTrend.lost.slice(0,50).map(x=>'- '+x):['No previous Selenium result yet.']),'',
   '## In manual CSV but not Selenium (first 50)','',
   ...missing.slice(0,50).map(x=>'- '+x),'',
   '## Selenium-only detections (first 50)','',
@@ -144,4 +169,5 @@ await writeFile(folder+'/summary.md',md);
 if(process.env.GITHUB_STEP_SUMMARY)await appendFile(process.env.GITHUB_STEP_SUMMARY,md);
 console.log(JSON.stringify({seleniumDetected:technologies.length,manualBaseline:prior.size,
   seleniumOnly:gained.length,manualOnly:missing.length,sourceMissing:sourceMissing.length,
+  seleniumTrendNet:seleniumTrend?.netChange??null,
   jsSignals,domSignals,headers:observed.diagnostics.responseHeaders}));
