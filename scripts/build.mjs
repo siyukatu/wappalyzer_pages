@@ -102,21 +102,29 @@ const originalBootstrap = unique([...globals]).sort().map((path) => {
 const extras = generateExtras(all, witness);
 const bootstrap = originalBootstrap + '\n' + extras.bootstrap;
 const hash = createHash('sha256').update(bootstrap).digest('base64');
+/* Static Pages cannot issue a fresh per-response nonce. Use CSP SHA-256 instead.
+ * Hide the entire synthetic fingerprint body while keeping its DOM accessible.
+ * The iframe/object/embed rule also protects against markup that escapes the wrapper.
+ */
+const concealCss = 'html,body{margin:0!important;padding:0!important}body{display:none!important}iframe,object,embed{display:none!important}';
+const styleHash = createHash('sha256').update(concealCss).digest('base64');
 const html = '<!doctype html>\n<html lang="en"><head><meta charset="utf-8">\n' +
   '<title>Wappalyzer fingerprint benchmark (synthetic)</title>\n' +
   '<meta name="robots" content="noindex,nofollow,noarchive">\n' +
+  '<style id="wappalyzer-conceal">' + concealCss + '</style>\\n' +
   [...meta.values()].map(([name, val]) => '<meta name="' + escape(name) + '" content="' + escape(val) + '">').join('\n') + '\n' +
   [...links].map((url) => '<link rel="stylesheet" href="' + escape(url) + '">').join('\n') + '\n' +
   [...scripts].map((url) => '<script src="' + escape(url) + '"></script>').join('\n') + '\n' +
   '<script>' + bootstrap.replace(/<\/script/gi, '<\\/script') + '</script>\n</head><body>\n' +
   '<!-- Synthetic signatures only; named technologies are NOT necessarily installed. -->\n' +
+  '<div id="wappalyzer-fingerprints" hidden>\\n' +
   extras.body + '\n' +
   [...dom].join('\n') + '\n<div hidden>' + [...text].map(escape).join(' ') + '</div>\n' +
-  '</body></html>\n';
+  '</div>\\n</body></html>\\n';
 // All dynamic content is emitted at build time; no Cloudflare Functions.
 await mkdir(OUT, { recursive: true });
 await writeFile(OUT + '/index.html', html);
-await writeFile(OUT + '/_headers', emitHeaders(hash, extras));
+await writeFile(OUT + '/_headers', emitHeaders(hash, extras, styleHash));
 await writeFile(OUT + '/404.html', '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><title>404 Not Found</title></head><body><h1>404 Not Found</h1><a href="/">Home</a></body></html>\n');
 await writeFile(OUT + '/robots.txt', 'User-agent: *\nDisallow: /\n');
 await writeFile(OUT + '/build-info.json', JSON.stringify({ generatedAt: new Date().toISOString(), ruleFiles: files.length, technologies: Object.keys(all).length, signatures: { meta: meta.size, scriptSrc: scripts.size, link: links.size, dom: dom.size, text: text.size, js: globals.size }, channels: counts, extras: extras.stats }, null, 2));
