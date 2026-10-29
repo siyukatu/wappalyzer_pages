@@ -12,8 +12,10 @@ const protectedGlobals = new Set([
 function rules(value) { return Array.isArray(value) ? value : value == null ? [] : [value]; }
 function normalize(name) {
   if (typeof name !== 'string') return null;
-  name = name.replace(/^(?:window|globalThis)\./,'');
-  if (!/^[a-z_$][\w$]*(?:\.[a-z_$][\w$]*){0,12}$/i.test(name)) return null;
+  name = name.trim().replace(/^(?:window|globalThis)\./,'').replace(/^\./,'');
+  // Wappalyzer also uses numeric array indices and hyphenated property keys.
+  // Bracket access in the runtime lets us set these without eval.
+  if (!/^[a-z_$][\w$-]*(?:\.[a-z0-9_$-]+){0,12}$/i.test(name)) return null;
   const bits = name.split('.');
   if (protectedGlobals.has(bits[0]) || bits.some(x=>forbidden.has(x))) return null;
   return bits;
