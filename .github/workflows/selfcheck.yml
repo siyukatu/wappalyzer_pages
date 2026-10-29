@@ -1,0 +1,51 @@
+name: Selenium Wappalyzer self-diagnosis
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 0,12 * * *'
+  workflow_run:
+    workflows: ['Verify generated fingerprint page']
+    types: [completed]
+
+concurrency:
+  group: selenium-wappalyzer-selfcheck
+  cancel-in-progress: true
+
+jobs:
+  selfcheck:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check available Chrome browser
+        run: |
+          (google-chrome --version || chromium --version || true)
+          (chromedriver --version || true)
+      - name: Fetch current Wappalyzer detection core and all rule files
+        run: node scripts/selfcheck-prepare.mjs
+      - name: Install Selenium
+        run: python -m pip install 'selenium>=4.35,<5'
+      - name: Capture actual deployed page with Selenium Chrome
+        run: python scripts/selenium-capture.py --url https://wappalyzer-technologies.pages.dev/
+      - name: Run original Wappalyzer matching engine and publish report
+        run: node scripts/selfcheck-analyze.mjs
+      - name: Upload complete self-diagnosis (JSON + Markdown)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: selenium-selfcheck
+          path: |
+            .selfcheck/report.json
+            .selfcheck/summary.md
+            .selfcheck/capture.json
+          retention-days: 30
+          if-no-files-found: warn
