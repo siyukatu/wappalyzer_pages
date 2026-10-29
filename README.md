@@ -20,3 +20,17 @@ The generated `dist/index.html` is a single standalone HTML file. Cloudflare Pag
 Run locally: `npm run build` then serve `dist` using a static file server (local file access will not apply the `_headers` CSP).
 
 The source GitHub repository can remain private even though a production Pages site is publicly reachable. Deploying to Pages is a separate Cloudflare account action.
+
+## Static-only detection expansion
+
+- `scripts/enrich.mjs` scans **every** technology definition for header, DOM, JavaScript and cookie rules, in addition to the existing HTML/meta/script URL rules. It creates best-effort matching witnesses, not full regex solutions.
+- `dist/_headers` dynamically contains synthetic, noncritical HTTP response headers inferred from Wappalyzer's `headers` field, along with restrictive CSP and security headers. Header names which could compromise HTTP semantics or Cloudflare's operation are intentionally excluded. Generated values are budgeted for reasonable response sizes.
+- `dist/404.html` is a real static 404 page, so Pages does not silently serve the homepage for missing paths.
+- `dist/robots.txt` opts out of crawler indexing. `dist/build-info.json` records signature counts.
+- A narrowly scoped inline script creates synthetic JavaScript globals and a capped set of first-party, non-sensitive cookies. No external requests, third-party scripts, or Cloudflare Functions are involved. Cookie creation has browser storage side effects; disable cookies in your test browser profile if unwanted.
+- The CSP deliberately prevents all external resources, including synthetic `script src` and `link` URLs. Such URLs may remain detectable as DOM attributes, but will not be loaded.
+- The generated custom HTTP header values are intentionally **false positives** and may not resemble real production software. They should not be used for fingerprint evasion, compliance, or security posture claims.
+
+Cloudflare documents a limit of 100 matching rules and 2,000 characters per header line. This build uses a **single** `/*` rule, with each line kept within the limit. Cloudflare Pages currently limits static file size to 25 MiB. There is no `functions/` or `_worker.js`.
+
+Documentation: https://developers.cloudflare.com/pages/configuration/headers/ and https://developers.cloudflare.com/pages/configuration/serving-pages/
