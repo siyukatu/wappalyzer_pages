@@ -122,7 +122,7 @@ function selectHeaders(all, witness, missingNames = new Set(), urgentNames = new
   }
   return {lines, count:lines.length, approxMatches:score, bytes:total};
 }
-export function generateExtras(all, witness, missingNames = new Set(), urgentNames = new Set()) {
+export function generateExtras(all, witness, missingNames = new Set(), urgentNames = new Set(), preserveNames = new Set()) {
   const dom = new Set(), comments = new Set(), cookieValues = new Map(), js = new Map(), domProperties = new Map();
   let domRuleCount = 0, cookieRuleCount=0;
   for (const [techName, tech] of Object.entries(all)) {
@@ -210,13 +210,14 @@ export function generateExtras(all, witness, missingNames = new Set(), urgentNam
         return v==null || (Array.isArray(v)&&v.length===0) ||
           (typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).length===0);
       });
-      const priority = urgentNames.has(techName) ? 1200 : cookieOnly ? 900 : missingNames.has(techName) ? 10 : 0;
+      const priority = urgentNames.has(techName) ? 1300 : preserveNames.has(techName) ? 1200 : cookieOnly ? 900 : missingNames.has(techName) ? 10 : 0;
       const prior = cookieValues.get(name);
       if (!prior || priority>prior.priority) cookieValues.set(name,{value:sample,priority,cookieOnly});
     }
 
   }
-  const chosenCookies=[...cookieValues].sort((a,b)=>b[1].priority-a[1].priority || a[0].localeCompare(b[0])).slice(0,179);
+  const chosenCookies=[...cookieValues].sort((a,b)=>b[1].priority-a[1].priority || a[0].localeCompare(b[0])).slice(0,180);
+  const nativePreservedChosen=chosenCookies.filter(([,value])=>value.priority>=1200).length;
   const cookieOnlyChosen=chosenCookies.filter(([,value])=>value.cookieOnly).length;
   const cookieList=chosenCookies.reverse().map(([name,obj])=>[name,obj.value]);
   const cookieScript = 'for(const [name,value] of ' + JSON.stringify(cookieList) +
@@ -228,7 +229,7 @@ export function generateExtras(all, witness, missingNames = new Set(), urgentNam
   return {
     bootstrap: cookieScript + propertyScript,
     body, headers,
-    stats: {additionalDom:dom.size, htmlComments:comments.size, syntheticDomProperties:domProperties.size, cookies:cookieList.length, cookieOnlyChosen, upstreamDomSelectors:domRuleCount, upstreamCookieRules:cookieRuleCount,
+    stats: {additionalDom:dom.size, htmlComments:comments.size, syntheticDomProperties:domProperties.size, cookies:cookieList.length, cookieOnlyChosen, nativePreservedChosen, upstreamDomSelectors:domRuleCount, upstreamCookieRules:cookieRuleCount,
       syntheticHeaderFields: headers.count, syntheticHeaderMatches:headers.approxMatches, syntheticHeaderBytes: headers.bytes}
   };
 }
