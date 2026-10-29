@@ -64,7 +64,7 @@ function selectorMarkup(raw) {
   const safeTag = /^[a-z][a-z0-9-]{0,35}$/i.test(tag) ? tag : 'div';
   return voids.has(safeTag) ? '<' + safeTag + as + '>' : '<' + safeTag + as + '></' + safeTag + '>';
 }
-function selectHeaders(all, witness, missingNames = new Set(), cap = 18000) {
+function selectHeaders(all, witness, missingNames = new Set(), urgentNames = new Set(), cap = 28000) {
   const patterns = new Map();
   for (const [techName, tech] of Object.entries(all)) {
     for (const [name, raw] of entries(tech?.headers)) {
@@ -76,21 +76,21 @@ function selectHeaders(all, witness, missingNames = new Set(), cap = 18000) {
         const v = p === '' ? '1' : witness(p);
         if (!plain(v) || v.length > 250 || !/^[\x20-\x7e]+$/.test(v)) continue;
         if (!patterns.has(lower)) patterns.set(lower, { name, rules: [], missing: new Set() });
-        patterns.get(lower).rules.push({ regexp: p.split('\\;')[0], value: v });
+        patterns.get(lower).rules.push({ regexp: p.split('\\;')[0], value: v, techName });
         if (missingNames.has(techName)) patterns.get(lower).missing.add(techName);
       }
     }
   }
   const candidates = [];
   for (const {name, rules, missing} of patterns.values()) {
-    const regexes = rules.map(({regexp})=>{try{return new RegExp(regexp,'i')}catch{return null}}).filter(Boolean);
+    const regexes = rules.map(({regexp,techName})=>{try{return {regex:new RegExp(regexp,'i'),weight:urgentNames.has(techName)?6:missingNames.has(techName)?3:1}}catch{return null}}).filter(Boolean);
     if (!regexes.length) continue;
     let best = '';
     let score = 0;
     // Find a high-coverage single value, then greedily append values only
     // when appending increases the number of independently matching patterns.
     const distinct = [...new Set(rules.map(r => r.value))].sort((a,b) => a.length-b.length).slice(0,250);
-    const coverage = v => regexes.reduce((n,re) => n + Number(re.test(v)),0);
+    const coverage = v => regexes.reduce((n,item) => n + (item.regex.test(v)?item.weight:0),0);
     for (const v of distinct) {
       const count = coverage(v);
       if (count > score || (count === score && (!best || v.length < best.length))) { best = v; score = count; }
@@ -115,14 +115,14 @@ function selectHeaders(all, witness, missingNames = new Set(), cap = 18000) {
   const lines = [];
   let total = 0, score = 0;
   for (const c of candidates) {
-    if (total + c.size > cap || c.size > 1950 || lines.length >= 220) continue;
+    if (total + c.size > cap || c.size > 1950 || lines.length >= 650) continue;
     lines.push('  ' + c.name + ': ' + c.best);
     total += c.size;
     score += c.score;
   }
   return {lines, count:lines.length, approxMatches:score, bytes:total};
 }
-export function generateExtras(all, witness, missingNames = new Set()) {
+export function generateExtras(all, witness, missingNames = new Set(), urgentNames = new Set()) {
   const dom = new Set(), comments = new Set(), cookieValues = new Map(), js = new Map();
   let domRuleCount = 0, cookieRuleCount=0;
   for (const [techName, tech] of Object.entries(all)) {
@@ -175,16 +175,16 @@ export function generateExtras(all, witness, missingNames = new Set()) {
       cookieRuleCount++;
       if (!/^[a-z0-9_!#$%&'*+.^|~-]{1,80}$/i.test(name)) continue;
       const sample = values(raw).map(witness).find(v => typeof v === 'string' && /^[a-z0-9_.-]{1,80}$/i.test(v)) || '1';
-      const priority = missingNames.has(techName) ? 1 : 0;
+      const priority = urgentNames.has(techName) ? 100 : missingNames.has(techName) ? 10 : 0;
       const prior = cookieValues.get(name);
       if (!prior || priority>prior.priority) cookieValues.set(name,{value:sample,priority});
     }
 
   }
-  const cookieList = [...cookieValues].sort((a,b)=>b[1].priority-a[1].priority || a[0].localeCompare(b[0])).slice(0,160).map(([name,obj])=>[name,obj.value]);
+  const cookieList = [...cookieValues].sort((a,b)=>b[1].priority-a[1].priority || a[0].localeCompare(b[0])).slice(0,170).reverse().map(([name,obj])=>[name,obj.value]);
   const cookieScript = 'for(const [name,value] of ' + JSON.stringify(cookieList) +
     '){try{document.cookie=name+"="+encodeURIComponent(value)+"; Path=/; SameSite=Lax; Secure";}catch{}}\n';
-  const headers = selectHeaders(all,witness,missingNames);
+  const headers = selectHeaders(all,witness,missingNames,urgentNames);
   const body = [...dom].join('') + [...comments].map(c=>'<!--'+c+'-->').join('');
   return {
     bootstrap: cookieScript,
