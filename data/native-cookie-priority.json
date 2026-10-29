@@ -1,8 +1,8 @@
 {
-  "description": "Native Wappalyzer CRX 6.12.8 cookie-selection guard; measured gained and lost technologies",
-  "baselineScan": 40959779658,
+  "description": "Protect native-detected cookie technologies from past two measured scan regressions while retaining earlier gains",
+  "baselineScan": 40960455224,
   "priorNative": 4134,
-  "currentNative": 4149,
+  "currentNative": 4154,
   "gained": [
     "Akamai Bot Manager",
     "Amazon ALB",
@@ -36,6 +36,9 @@
     "EcForce",
     "Gauges",
     "Kicksite",
-    "Nextcloud"
+    "Nextcloud",
+    "Twsaa",
+    "Webreed",
+    "uhChat"
   ]
 }
