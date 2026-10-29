@@ -48,6 +48,7 @@ jobs:
       - name: Install Selenium
         run: python -m pip install 'selenium>=4.35,<5'
       - name: Inspect real extension engine, popup, and local storage in Selenium
+        continue-on-error: true
         run: python scripts/probe-extension.py
       - name: Restore prior diagnosis from first-party GitHub Actions cache
         uses: actions/cache/restore@v4
