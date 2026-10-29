@@ -69,8 +69,7 @@ for (const [name, item] of Object.entries(all)) {
 const extras = generateExtras(all, witness, priorityNames, urgentNames);
 const compactGlobals = compileGlobals(all, witness);
 const inlineWitnesses = [...inlineSignatures].sort().map(v => '/*' + v.replace(/\*\//g,'* /') + '*/').join('');
-const rawSrcBootstrap = 'if(typeof document.addEventListener==="function")document.addEventListener("DOMContentLoaded",()=>{for(const node of document.querySelectorAll("script[data-wappalyzer-raw-src]")){try{Object.defineProperty(node,"src",{value:node.getAttribute("data-wappalyzer-raw-src"),configurable:true})}catch{}}});';
-const bootstrap = (compactGlobals.source + ';' + extras.bootstrap + ';' + rawSrcBootstrap + ';' + inlineWitnesses).replace(/[\r\n]/g,'');
+const bootstrap = (compactGlobals.source + ';' + extras.bootstrap + ';' + inlineWitnesses).replace(/[\r\n]/g,'');
 const hash = createHash('sha256').update(bootstrap).digest('base64');
 /* Static Pages cannot issue a fresh per-response nonce. Use CSP SHA-256 instead.
  * Hide the entire synthetic fingerprint body while keeping its DOM accessible.
@@ -94,8 +93,7 @@ const html = '<!doctype html>\n<html lang="en"><head><meta charset="utf-8">'+dep
     return kinds.map(kind => '<meta '+kind+'="'+escape(name)+'" content="'+escape(val)+'">');
   }).join('') +
   [...links].map((url) => '<link rel="stylesheet" href="' + escape(url) + '">').join('\n') + '\n' +
-  [...scripts].map((url) => '<script src="' + escape(url) + '"></script>' +
-    (url.startsWith('/') ? '<script src="' + escape(url) + '" data-wappalyzer-raw-src="' + escape(url) + '"></script>' : '')).join('') + '\n' +
+  [...scripts].map((url) => '<script src="' + escape(url) + '"></script>').join('\n') + '\n' +
   '<script>' + bootstrap.replace(/<\/script/gi, '<\\/script') + '</script>\n</head><body>\n' +
   '<!-- Synthetic signatures only; named technologies are NOT necessarily installed. -->\n' +
   '<div id="wappalyzer-fingerprints">\n' +
@@ -114,6 +112,6 @@ await writeFile(OUT + '/robots.txt', 'User-agent: *\nDisallow: /\n');
 await writeFile(OUT + '/coverage.json', JSON.stringify(latestCoverage, null, 2));
 await writeFile(OUT + '/coverage-original.json', JSON.stringify(baselineCoverage, null, 2));
 await writeFile(OUT + '/coverage-second.json', JSON.stringify(secondCoverage, null, 2));
-await writeFile(OUT + '/build-info.json', JSON.stringify({ generatedAt: new Date().toISOString(), sourceCommit, pageBuildVersion, ruleFiles: files.length, upstreamArchiveBytes: upstreamBytes, ruleSource, technologies: Object.keys(all).length, signatures: { meta: meta.size, scriptSrc: scripts.size, rawSrcOverrides: [...scripts].filter(url=>url.startsWith('/')).length, link: links.size, dom: dom.size, text: text.size, js: compactGlobals.stats.globalPaths, scriptText: inlineSignatures.size, cssRules: cssMarkers.rules, regressedPrioritized: regressed.regressed.length, latestRegressedPrioritized: third.regressed.length }, channels: counts, extras: extras.stats, globals: compactGlobals.stats }, null, 2));
+await writeFile(OUT + '/build-info.json', JSON.stringify({ generatedAt: new Date().toISOString(), sourceCommit, pageBuildVersion, ruleFiles: files.length, upstreamArchiveBytes: upstreamBytes, ruleSource, technologies: Object.keys(all).length, signatures: { meta: meta.size, scriptSrc: scripts.size, link: links.size, dom: dom.size, text: text.size, js: compactGlobals.stats.globalPaths, scriptText: inlineSignatures.size, cssRules: cssMarkers.rules, regressedPrioritized: regressed.regressed.length, latestRegressedPrioritized: third.regressed.length }, channels: counts, extras: extras.stats, globals: compactGlobals.stats }, null, 2));
 console.log('Generated ' + Object.keys(all).length + ' technology candidates from Chrome Web Store Wappalyzer v' + ruleSource.version + ' (' + files.length + ' JSON files).');
 console.log('index.html bytes: ' + Buffer.byteLength(compactHtml));
