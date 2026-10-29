@@ -10,6 +10,7 @@ import { coverage } from './coverage.mjs';
 import { makePassiveUrlCandidates } from './passive-urls.mjs';
 import { cssFingerprints } from './css-witness.mjs';
 import { fetchStoreRules } from './store-rules.mjs';
+import { rootAttributes } from './root-dom.mjs';
 
 const OUT = 'dist';
 const escape = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -67,6 +68,7 @@ for (const [name, item] of Object.entries(all)) {
   }
 }
 const extras = generateExtras(all, witness, priorityNames, urgentNames);
+const root = rootAttributes(all);
 const compactGlobals = compileGlobals(all, witness);
 const inlineWitnesses = [...inlineSignatures].sort().map(v => '/*' + v.replace(/\*\//g,'* /') + '*/').join('');
 const bootstrap = (compactGlobals.source + ';' + extras.bootstrap + ';' + inlineWitnesses).replace(/[\r\n]/g,'');
@@ -84,7 +86,7 @@ const deploymentMeta = '<meta name="wappalyzer-pages-commit" content="'+escape(s
   '<meta name="wappalyzer-pages-build-version" content="'+pageBuildVersion+'">'+
   '<meta name="wappalyzer-pages-rules-version" content="'+escape(ruleSource.version)+'">'+
   '<meta name="wappalyzer-pages-rules-sha256" content="'+escape(ruleSource.sha256)+'">';
-const html = '<!doctype html>\n<html lang="en"><head><meta charset="utf-8">'+deploymentMeta+'\n' +
+const html = '<!doctype html>\n<html lang="en"'+root.html+'><head><meta charset="utf-8">'+deploymentMeta+'\n' +
   '<title>Wappalyzer fingerprint benchmark (synthetic)</title>\n' +
   '<meta name="robots" content="noindex,nofollow,noarchive">\n' +
   '<style id="wappalyzer-conceal">' + concealCss + '</style>\n' +
@@ -94,7 +96,7 @@ const html = '<!doctype html>\n<html lang="en"><head><meta charset="utf-8">'+dep
   }).join('') +
   [...links].map((url) => '<link rel="stylesheet" href="' + escape(url) + '">').join('\n') + '\n' +
   [...scripts].map((url) => '<script src="' + escape(url) + '"></script>').join('\n') + '\n' +
-  '<script>' + bootstrap.replace(/<\/script/gi, '<\\/script') + '</script>\n</head><body>\n' +
+  '<script>' + bootstrap.replace(/<\/script/gi, '<\\/script') + '</script>\n</head><body'+root.body+'>\n' +
   '<!-- Synthetic signatures only; named technologies are NOT necessarily installed. -->\n' +
   '<div id="wappalyzer-fingerprints">\n' +
   extras.body + '\n' +
@@ -112,6 +114,6 @@ await writeFile(OUT + '/robots.txt', 'User-agent: *\nDisallow: /\n');
 await writeFile(OUT + '/coverage.json', JSON.stringify(latestCoverage, null, 2));
 await writeFile(OUT + '/coverage-original.json', JSON.stringify(baselineCoverage, null, 2));
 await writeFile(OUT + '/coverage-second.json', JSON.stringify(secondCoverage, null, 2));
-await writeFile(OUT + '/build-info.json', JSON.stringify({ generatedAt: new Date().toISOString(), sourceCommit, pageBuildVersion, ruleFiles: files.length, upstreamArchiveBytes: upstreamBytes, ruleSource, technologies: Object.keys(all).length, signatures: { meta: meta.size, scriptSrc: scripts.size, link: links.size, dom: dom.size, text: text.size, js: compactGlobals.stats.globalPaths, scriptText: inlineSignatures.size, cssRules: cssMarkers.rules, regressedPrioritized: regressed.regressed.length, latestRegressedPrioritized: third.regressed.length }, channels: counts, extras: extras.stats, globals: compactGlobals.stats }, null, 2));
+await writeFile(OUT + '/build-info.json', JSON.stringify({ generatedAt: new Date().toISOString(), sourceCommit, pageBuildVersion, ruleFiles: files.length, upstreamArchiveBytes: upstreamBytes, ruleSource, technologies: Object.keys(all).length, signatures: { meta: meta.size, scriptSrc: scripts.size, link: links.size, dom: dom.size, text: text.size, js: compactGlobals.stats.globalPaths, scriptText: inlineSignatures.size, cssRules: cssMarkers.rules, regressedPrioritized: regressed.regressed.length, latestRegressedPrioritized: third.regressed.length }, channels: counts, extras: extras.stats, root:root.stats, globals: compactGlobals.stats }, null, 2));
 console.log('Generated ' + Object.keys(all).length + ' technology candidates from Chrome Web Store Wappalyzer v' + ruleSource.version + ' (' + files.length + ' JSON files).');
 console.log('index.html bytes: ' + Buffer.byteLength(compactHtml));
