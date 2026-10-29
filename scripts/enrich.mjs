@@ -229,12 +229,21 @@ export function generateExtras(all, witness, missingNames = new Set(), urgentNam
     }
 
   }
-  const chosenCookies=[...cookieValues].sort((a,b)=>b[1].priority-a[1].priority || a[0].localeCompare(b[0])).slice(0,180);
+  const orderedCookies=[...cookieValues].sort((a,b)=>b[1].priority-a[1].priority || a[0].localeCompare(b[0]));
+  const chosenCookies=orderedCookies.slice(0,180);
+  // CHIPS provides an independent top-level-site cookie partition in Chrome.
+  // The browser probe independently confirmed 110 regular + 110 partitioned
+  // cookies coexist and are visible to document.cookie on this origin.
+  // Never replace existing 180 ordinary cookies with these extra candidates.
+  const partitionedCookies=orderedCookies.slice(180,325);
   const nativePreservedChosen=chosenCookies.filter(([,value])=>value.priority>=1200).length;
   const cookieOnlyChosen=chosenCookies.filter(([,value])=>value.cookieOnly).length;
   const cookieList=chosenCookies.reverse().map(([name,obj])=>[name,obj.value]);
+  const partitionedList=partitionedCookies.reverse().map(([name,obj])=>[name,obj.value]);
   const cookieScript = 'for(const [name,value] of ' + JSON.stringify(cookieList) +
-    '){try{document.cookie=name+"="+encodeURIComponent(value)+"; Path=/; SameSite=Lax; Secure";}catch{}}\n';
+    '){try{document.cookie=name+"="+encodeURIComponent(value)+"; Path=/; SameSite=Lax; Secure";}catch{}}' +
+    'for(const [name,value] of ' + JSON.stringify(partitionedList) +
+    '){try{document.cookie=name+"="+encodeURIComponent(value)+"; Path=/; SameSite=None; Secure; Partitioned";}catch{}}';
   const propJSON=JSON.stringify([...domProperties.values()]).replace(/</g,'\\u003c');
   const propertyScript = 'if(typeof document.addEventListener==="function")document.addEventListener("DOMContentLoaded",()=>{for(const [selector,property,value] of '+propJSON+'){try{for(const element of document.querySelectorAll(selector)){Object.defineProperty(element,property,{value,writable:true,configurable:true})}}catch{}}});';
   const headers = selectHeaders(all,witness,missingNames,urgentNames);
@@ -242,7 +251,7 @@ export function generateExtras(all, witness, missingNames = new Set(), urgentNam
   return {
     bootstrap: cookieScript + propertyScript,
     body, headers,
-    stats: {additionalDom:dom.size, htmlComments:comments.size, syntheticDomProperties:domProperties.size, cookies:cookieList.length, cookieOnlyChosen, nativePreservedChosen, upstreamDomSelectors:domRuleCount, upstreamCookieRules:cookieRuleCount,
+    stats: {additionalDom:dom.size, htmlComments:comments.size, syntheticDomProperties:domProperties.size, cookies:cookieList.length, partitionedCookies:partitionedList.length, cookieOnlyChosen, nativePreservedChosen, upstreamDomSelectors:domRuleCount, upstreamCookieRules:cookieRuleCount,
       syntheticHeaderFields: headers.count, syntheticHeaderMatches:headers.approxMatches, syntheticHeaderBytes: headers.bytes,
       sharedHeaderDiagnostics:headers.sharedHeaderDiagnostics}
   };
