@@ -2,6 +2,7 @@
 // Generate a single intentionally synthetic Wappalyzer fingerprint page.
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
+import { generateExtras, emitHeaders } from './enrich.mjs';
 
 const API = 'https://api.github.com/repos/HTTPArchive/wappalyzer/contents/src/technologies?ref=main';
 const OUT = 'dist';
@@ -93,11 +94,13 @@ for (const [name, item] of Object.entries(all)) {
     }
   }
 }
-const bootstrap = unique([...globals]).sort().map((path) => {
+const originalBootstrap = unique([...globals]).sort().map((path) => {
   const parts = path.split('.');
   const literal = JSON.stringify(parts);
   return 'try{let o=globalThis;const p=' + literal + ';for(let i=0;i<p.length-1;i++){if(o[p[i]]==null)o[p[i]]={};o=o[p[i]];}if(o[p.at(-1)]==null)o[p.at(-1)]={};}catch{}';
 }).join('\n');
+const extras = generateExtras(all, witness);
+const bootstrap = originalBootstrap + '\n' + extras.bootstrap;
 const hash = createHash('sha256').update(bootstrap).digest('base64');
 const html = '<!doctype html>\n<html lang="en"><head><meta charset="utf-8">\n' +
   '<title>Wappalyzer fingerprint benchmark (synthetic)</title>\n' +
@@ -107,14 +110,15 @@ const html = '<!doctype html>\n<html lang="en"><head><meta charset="utf-8">\n' +
   [...scripts].map((url) => '<script src="' + escape(url) + '"></script>').join('\n') + '\n' +
   '<script>' + bootstrap.replace(/<\/script/gi, '<\\/script') + '</script>\n</head><body>\n' +
   '<!-- Synthetic signatures only; named technologies are NOT necessarily installed. -->\n' +
+  extras.body + '\n' +
   [...dom].join('\n') + '\n<div hidden>' + [...text].map(escape).join(' ') + '</div>\n' +
   '</body></html>\n';
-// CSP blocks all outbound resources, despite presence of synthetic URLs in the DOM.
-// Allow only the precise inline bootstrap by its digest.
-const csp = "default-src 'none'; script-src 'sha256-" + hash + "'; style-src 'none'; img-src 'none'; font-src 'none'; connect-src 'none'; frame-src 'none'; object-src 'none'; media-src 'none'; form-action 'none'; base-uri 'none'";
+// All dynamic content is emitted at build time; no Cloudflare Functions.
 await mkdir(OUT, { recursive: true });
 await writeFile(OUT + '/index.html', html);
-await writeFile(OUT + '/_headers', '/\n  Content-Security-Policy: ' + csp + '\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: no-referrer\n  X-Robots-Tag: noindex, nofollow\n');
-await writeFile(OUT + '/build-info.json', JSON.stringify({ generatedAt: new Date().toISOString(), ruleFiles: files.length, technologies: Object.keys(all).length, signatures: { meta: meta.size, scriptSrc: scripts.size, link: links.size, dom: dom.size, text: text.size, js: globals.size }, channels: counts }, null, 2));
+await writeFile(OUT + '/_headers', emitHeaders(hash, extras));
+await writeFile(OUT + '/404.html', '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><title>404 Not Found</title></head><body><h1>404 Not Found</h1><a href="/">Home</a></body></html>\n');
+await writeFile(OUT + '/robots.txt', 'User-agent: *\nDisallow: /\n');
+await writeFile(OUT + '/build-info.json', JSON.stringify({ generatedAt: new Date().toISOString(), ruleFiles: files.length, technologies: Object.keys(all).length, signatures: { meta: meta.size, scriptSrc: scripts.size, link: links.size, dom: dom.size, text: text.size, js: globals.size }, channels: counts, extras: extras.stats }, null, 2));
 console.log('Generated ' + Object.keys(all).length + ' technology candidates from ' + files.length + ' upstream JSON files.');
 console.log('index.html bytes: ' + Buffer.byteLength(html));
