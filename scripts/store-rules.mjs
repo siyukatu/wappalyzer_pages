@@ -53,7 +53,8 @@ function zipEntries(zip) {
     if(name.includes('..') || name.startsWith('/') || name.endsWith('/'))continue;
     const key=/^(?:[^/]+\/)*technologies\/([^/]+\.json)$/.exec(name);
     const metadata=/^(?:[^/]+\/)*(manifest\.json|categories\.json)$/.exec(name);
-    if(!key&&!metadata)continue;
+    const matchingEngine=/(?:^|\/)js\/wappalyzer\.js$/.test(name);
+    if(!key&&!metadata&&!matchingEngine)continue;
     if(local+30>zip.length||zip.readUInt32LE(local)!==0x04034b50)throw Error('Corrupt ZIP file header');
     const data=local+30+zip.readUInt16LE(local+26)+zip.readUInt16LE(local+28);
     if(data+compressed>zip.length)throw Error('ZIP entry exceeds package bounds');
@@ -90,11 +91,12 @@ export async function fetchStoreRules() {
   }
   const entries=zipEntries(zip);
   const json=new Map();
-  let manifest=null, categories=null;
+  let manifest=null, categories=null, engine=null;
   const all=Object.create(null);
   for(const [path,bytes] of entries){
     if(/(?:^|\/)manifest\.json$/.test(path) && !manifest)manifest=JSON.parse(bytes.toString('utf8'));
     if(/(?:^|\/)categories\.json$/.test(path) && !categories)categories=bytes.toString('utf8');
+    if(/(?:^|\/)js\/wappalyzer\.js$/.test(path) && !engine)engine=bytes.toString('utf8');
     const m=/(?:^|\/)technologies\/([^/]+\.json)$/.exec(path);
     if(!m)continue;
     const decoded=JSON.parse(bytes.toString('utf8'));
@@ -103,6 +105,7 @@ export async function fetchStoreRules() {
     json.set(m[1],decoded);
   }
   if(!manifest?.version)throw Error('Chrome Web Store CRX manifest version is absent');
+  if(!engine || !engine.includes('setTechnologies') || !engine.includes('analyzeManyToMany'))throw Error('Real Wappalyzer detector module missing from CRX');
   if(json.size<20)throw Error('Expected at least 20 bundled technologies JSON files in Wappalyzer CRX, found '+json.size);
   for(const file of [...json.keys()].sort()){
     for(const [name,technology] of Object.entries(json.get(file))){
@@ -114,7 +117,7 @@ export async function fetchStoreRules() {
   return {
     files:[...json.keys()].sort(),
     technologies:all,
-    extras:{categories},
+    extras:{categories,engine},
     source:{
       type:'chrome-web-store-crx',
       extensionId:EXTENSION_ID,
@@ -124,6 +127,7 @@ export async function fetchStoreRules() {
       sizeBytes:raw.length,
       sha256:createHash('sha256').update(raw).digest('hex'),
       technologyFiles:json.size,
+      detectorEngineSha256:createHash('sha256').update(engine).digest('hex'),
       technologies:Object.keys(all).length,
       storeUrl:'https://chromewebstore.google.com/detail/gppongmhjkpfnbhagpmjfkannfbllamg'
     },
