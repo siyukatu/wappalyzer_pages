@@ -23,7 +23,7 @@ const js={};
 const toScalar=v=>typeof v==="string"||typeof v==="number"?v:!!v;
 for(const chain of paths){
   try {
-    const parts=chain.replace(/\[([^\]]+)\]/g,'.$1).replace(/^(window|globalThis)\./,'').replace(/^\./,'').split('.');
+    const parts=chain.replace(/\[([^\]]+)\]/g,'.$1').replace(/^(window|globalThis)\./,'').replace(/^\./,'').split('.');
     let current=window;
     for(const part of parts){
       if(!part){continue}
