@@ -3,6 +3,7 @@
 import json,os,pathlib,re,shutil,time
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 
 PATH=str(pathlib.Path('.selfcheck/extension').resolve())
@@ -12,9 +13,17 @@ for arg in ['--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable
             '--disable-background-networking','--disable-default-apps','--window-size=1200,800',
             '--disable-extensions-except='+PATH,'--load-extension='+PATH]:
     opts.add_argument(arg)
-bin=shutil.which('google-chrome') or shutil.which('chromium')
-if bin:opts.binary_location=bin
-driver=webdriver.Chrome(options=opts)
+cft=pathlib.Path('.selfcheck/cft')
+cfbrowser=cft/'chrome-linux64/chrome'
+cfdriver=cft/'chromedriver-linux64/chromedriver'
+if cfbrowser.is_file() and cfdriver.is_file():
+    opts.binary_location=str(cfbrowser.resolve())
+    driver=webdriver.Chrome(service=Service(executable_path=str(cfdriver.resolve())),options=opts)
+else:
+    binary=shutil.which('google-chrome') or shutil.which('chromium')
+    if binary:opts.binary_location=binary
+    driver=webdriver.Chrome(options=opts)
+driver.set_script_timeout(70)
 try:
     driver.set_page_load_timeout(120)
     driver.get(URL)
@@ -57,6 +66,31 @@ chrome.tabs.query({}, tabs=>done(tabs.map(x=>({id:x.id,url:x.url,active:x.active
 """)
         print('TABS',json.dumps(tabs)[:1300])
     except Exception as exc:print('TABS_ERROR',str(exc)[:250])
+    # Ask the extension's own background driver for resolved detections. This
+    # calls Driver.getDetectionsForTab, not a replica of its matching logic.
+    try:
+        native=driver.execute_async_script("""
+const finish=arguments[arguments.length-1];
+chrome.tabs.query({}, tabs=>{
+  const page=tabs.find(t=>(t.url||'').startsWith('https://wappalyzer-technologies.pages.dev/'));
+  if(!page)return finish({error:'Target Pages tab missing from extension tab list'});
+  chrome.runtime.sendMessage(
+    {source:'selenium-native-extension',func:'getDetectionsForTab',args:[{id:page.id,url:page.url}]},
+    result=>finish({tabId:page.id,url:page.url,results:result,
+      error:chrome.runtime.lastError?.message||null})
+  );
+});
+""")
+        output['nativeError']=native.get('error')
+        output['nativeDetections']=native.get('results') or []
+        print('NATIVE_EXTENSION_RESULT',json.dumps({
+            'count':len(output['nativeDetections']),
+            'sample':[v.get('name') for v in output['nativeDetections'][:25]],
+            'error':output['nativeError'],'tabId':native.get('tabId')
+        },ensure_ascii=False))
+    except Exception as exc:
+        output['nativeError']=str(exc)[:600]
+        print('NATIVE_EXTENSION_ERROR',output['nativeError'])
     output['popupText']=driver.execute_script('return document.body?.innerText||""')
     output['popupHtml']=driver.page_source[:30000]
     pathlib.Path('.selfcheck/extension-probe.json').write_text(json.dumps(output,ensure_ascii=False),encoding='utf-8')
