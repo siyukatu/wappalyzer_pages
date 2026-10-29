@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Apply the HTTPArchive open-source Wappalyzer engine to Selenium observations.
-import { readFile, writeFile, mkdir, appendFile } from 'node:fs/promises';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const folder = process.env.DIAGNOSTIC_DIR || '.selfcheck';
@@ -177,7 +177,6 @@ const md=[
   'The full list of detections, missing technologies and browser observations is in the Actions artifact.',''
 ].join('\n');
 await writeFile(folder+'/summary.md',md);
-if(process.env.GITHUB_STEP_SUMMARY)await appendFile(process.env.GITHUB_STEP_SUMMARY,md);
 console.log(JSON.stringify({seleniumDetected:technologies.length,manualBaseline:prior.size,
   seleniumOnly:gained.length,manualOnly:missing.length,sourceMissing:sourceMissing.length,
   seleniumTrendNet:seleniumTrend?.netChange??null,
