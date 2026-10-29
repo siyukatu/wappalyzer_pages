@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Inspect the actual Wappalyzer CRX installed in a throwaway Selenium Chrome profile."""
-import json,os,pathlib,re,shutil,time
+import json,os,pathlib,re,shutil,time,subprocess
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -18,7 +18,14 @@ cfbrowser=cft/'chrome-linux64/chrome'
 cfdriver=cft/'chromedriver-linux64/chromedriver'
 if cfbrowser.is_file() and cfdriver.is_file():
     opts.binary_location=str(cfbrowser.resolve())
-    driver=webdriver.Chrome(service=Service(executable_path=str(cfdriver.resolve())),options=opts)
+    check=subprocess.run([str(cfbrowser.resolve()),'--version'],capture_output=True,text=True,timeout=15)
+    print('CHROME_FOR_TESTING_CHECK',repr((check.returncode,check.stdout.strip(),check.stderr.strip()[:300])),flush=True)
+    logpath=pathlib.Path('.selfcheck/cft-chromedriver.log')
+    try:
+        driver=webdriver.Chrome(service=Service(executable_path=str(cfdriver.resolve()),log_output=str(logpath),service_args=['--verbose']),options=opts)
+    except Exception:
+        if logpath.is_file():print('CHROMEDRIVER_ERROR_LOG',logpath.read_text(errors='replace')[-4500:],flush=True)
+        raise
 else:
     binary=shutil.which('google-chrome') or shutil.which('chromium')
     if binary:opts.binary_location=binary
