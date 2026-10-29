@@ -1,17 +1,13 @@
 #!/usr/bin/env node
-// Use the same upstream rule snapshot and original Wappalyzer matching engine.
+// Use the exact matching engine and fingerprint snapshot extracted from the same Web Store CRX.
 // Nothing from this diagnostic is shipped to Cloudflare Pages.
 import { mkdir, writeFile } from 'node:fs/promises';
-import { fetchTechnologyRules } from './upstream.mjs';
 import { fetchStoreRules } from './store-rules.mjs';
 
 const out=process.env.DIAGNOSTIC_DIR||'.selfcheck';
-const [{files,technologies,extras,source,downloadBytes}, archived]=await Promise.all([
-  fetchStoreRules(),fetchTechnologyRules()
-]);
-if(!archived.extras.engine)throw new Error('Original Wappalyzer engine missing from HTTPArchive');
-const categoryJson=extras.categories||archived.extras.categories;
-if(!categoryJson)throw new Error('No Wappalyzer category definitions found');
+const {files,technologies,extras,source,downloadBytes}=await fetchStoreRules();
+if(!extras.engine)throw new Error('Matching engine is absent from downloaded CRX');
+if(!extras.categories)throw new Error('Categories are absent from downloaded CRX');
 const dom=[];
 const js=new Set();
 for(const [name,tech] of Object.entries(technologies)){
@@ -33,9 +29,9 @@ for(const [name,tech] of Object.entries(technologies)){
 await mkdir(out,{recursive:true});
 await Promise.all([
   writeFile(out+'/rules.json',JSON.stringify(technologies)),
-  writeFile(out+'/categories.json',categoryJson),
-  writeFile(out+'/engine.cjs',archived.extras.engine),
+  writeFile(out+'/categories.json',extras.categories),
+  writeFile(out+'/engine.cjs',extras.engine),
   writeFile(out+'/rule-source.json',JSON.stringify(source)),
   writeFile(out+'/specs.json',JSON.stringify({js:[...js],dom}))
 ]);
-console.log(JSON.stringify({snapshotRules:Object.keys(technologies).length,ruleFiles:files.length,jsPaths:js.size,domSelectors:dom.length,crxVersion:source.version,crxSha256:source.sha256,storeBytes:downloadBytes,engine:'HTTPArchive archived Wappalyzer core'}));
+console.log(JSON.stringify({snapshotRules:Object.keys(technologies).length,ruleFiles:files.length,jsPaths:js.size,domSelectors:dom.length,crxVersion:source.version,crxSha256:source.sha256,storeBytes:downloadBytes,engine:'Exact Chrome Web Store Wappalyzer CRX js/wappalyzer.js'}));
