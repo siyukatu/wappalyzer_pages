@@ -1,0 +1,27 @@
+name: Verify generated fingerprint page
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Generate HTML from upstream Wappalyzer rules
+        run: npm run build
+      - name: Assert outputs exist
+        run: |
+          test -s dist/index.html
+          test -s dist/_headers
+          node -e "const b=require('./dist/build-info.json'); if(b.technologies<1000)process.exit(1); console.log(b)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: generated-site
+          path: dist/
+          retention-days: 7
