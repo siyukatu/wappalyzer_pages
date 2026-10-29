@@ -1,3 +1,4 @@
+import { optimizeSharedHeader } from './header-optimizer.mjs';
 // Additional static-only fingerprint channels for Cloudflare Pages.
 // Signatures are synthetic and must NEVER be interpreted as installed software.
 const SKIP_HEADERS = new Set([
@@ -82,6 +83,7 @@ function selectHeaders(all, witness, missingNames = new Set(), urgentNames = new
     }
   }
   const candidates = [];
+  let sharedHeaderDiagnostics = null;
   for (const {name, rules, missing} of patterns.values()) {
     const regexes = rules.map(({regexp,techName})=>{try{return {regex:new RegExp(regexp,'i'),weight:urgentNames.has(techName)?6:missingNames.has(techName)?3:1}}catch{return null}}).filter(Boolean);
     if (!regexes.length) continue;
@@ -107,6 +109,17 @@ function selectHeaders(all, witness, missingNames = new Set(), urgentNames = new
       if (next === best) break;
       best = next; score = count;
     }
+    if (name.toLowerCase()==='x-powered-by') {
+      const improved=optimizeSharedHeader(
+        rules.map(r=>({...r,weight:urgentNames.has(r.techName)?6:missingNames.has(r.techName)?3:1})),best);
+      sharedHeaderDiagnostics={before:improved.baseline,after:improved.matched,
+        extraTechnologies:Math.max(0,improved.matched-improved.baseline),
+        techNames:improved.names};
+      if(improved.matched>improved.baseline) {
+        best=improved.value;
+        score=coverage(best);
+      }
+    }
     if (best) candidates.push({name, best, score, missingCount:missing.size, size: name.length+best.length+4});
   }
   // Valuable uncommon header fields are retained as long as the practical
@@ -120,7 +133,7 @@ function selectHeaders(all, witness, missingNames = new Set(), urgentNames = new
     total += c.size;
     score += c.score;
   }
-  return {lines, count:lines.length, approxMatches:score, bytes:total};
+  return {lines, count:lines.length, approxMatches:score, bytes:total, sharedHeaderDiagnostics};
 }
 export function generateExtras(all, witness, missingNames = new Set(), urgentNames = new Set(), preserveNames = new Set()) {
   const dom = new Set(), comments = new Set(), cookieValues = new Map(), js = new Map(), domProperties = new Map();
@@ -230,7 +243,8 @@ export function generateExtras(all, witness, missingNames = new Set(), urgentNam
     bootstrap: cookieScript + propertyScript,
     body, headers,
     stats: {additionalDom:dom.size, htmlComments:comments.size, syntheticDomProperties:domProperties.size, cookies:cookieList.length, cookieOnlyChosen, nativePreservedChosen, upstreamDomSelectors:domRuleCount, upstreamCookieRules:cookieRuleCount,
-      syntheticHeaderFields: headers.count, syntheticHeaderMatches:headers.approxMatches, syntheticHeaderBytes: headers.bytes}
+      syntheticHeaderFields: headers.count, syntheticHeaderMatches:headers.approxMatches, syntheticHeaderBytes: headers.bytes,
+      sharedHeaderDiagnostics:headers.sharedHeaderDiagnostics}
   };
 }
 export function emitHeaders(hash, extras, styleHash) {
