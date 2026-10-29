@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Inspect the actual Wappalyzer CRX installed in a throwaway Selenium Chrome profile."""
-import json,os,pathlib,re,shutil,time,subprocess
+import json,os,pathlib,re,shutil,time,subprocess,unicodedata
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -9,6 +9,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 PATH=str(pathlib.Path('.selfcheck/extension').resolve())
 URL='https://wappalyzer-technologies.pages.dev/'
 opts=Options()
+opts.set_capability('goog:loggingPrefs',{'browser':'ALL'})
 for arg in ['--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-gpu','--no-first-run',
             '--disable-background-networking','--disable-default-apps','--window-size=1200,800',
             '--disable-extensions-except='+PATH,'--load-extension='+PATH]:
@@ -35,6 +36,8 @@ try:
     driver.set_page_load_timeout(120)
     driver.get(URL)
     WebDriverWait(driver,30).until(lambda d:d.execute_script('return document.readyState')=='complete')
+    page_loaded_at=time.monotonic()
+    page_window=driver.current_window_handle
     expected=os.getenv('EXPECTED_COMMIT')
     head_commit=driver.execute_script(
         'return document.querySelector(\'meta[name="wappalyzer-pages-commit"]\')?.content||null')
@@ -80,31 +83,140 @@ chrome.tabs.query({}, tabs=>done(tabs.map(x=>({id:x.id,url:x.url,active:x.active
 """)
         print('TABS',json.dumps(tabs)[:1300])
     except Exception as exc:print('TABS_ERROR',str(exc)[:250])
-    # Ask the extension's own background driver for resolved detections. This
-    # calls Driver.getDetectionsForTab, not a replica of its matching logic.
-    try:
-        native=driver.execute_async_script("""
-const finish=arguments[arguments.length-1];
-chrome.tabs.query({}, tabs=>{
+    # The real content.js runs an initial JS/DOM scan and then a delayed JS
+    # rescan (five seconds after its initial pipeline). Requirements can trigger
+    # additional DOM scans. A single read is therefore too early.
+    #
+    # Poll the extension's *own* background API for up to ~105 s, and require
+    # at least 60 s and 20 s without new names before considering it stable.
+    # Keep the largest observed result as a safeguard against transient empty
+    # replies, and record all snapshots for reproducible diagnostics.
+    native_js = """
+const done=arguments[arguments.length-1];
+chrome.tabs.query({},tabs=>{
   const page=tabs.find(t=>(t.url||'').startsWith('https://wappalyzer-technologies.pages.dev/'));
-  if(!page)return finish({error:'Target Pages tab missing from extension tab list'});
+  if(!page){done({results:[],error:'No target Pages tab'});return}
   chrome.runtime.sendMessage(
-    {source:'selenium-native-extension',func:'getDetectionsForTab',args:[{id:page.id,url:page.url}]},
-    result=>finish({tabId:page.id,url:page.url,results:result,
+    {source:'selenium-native-extension',func:'getDetectionsForTab',
+     args:[{id:page.id,url:page.url}]},
+    result=>done({tabId:page.id,url:page.url,results:Array.isArray(result)?result:[],
       error:chrome.runtime.lastError?.message||null})
   );
 });
+"""
+    timeline=[]
+    seen=set()
+    previous=set()
+    best=[]
+    best_count=0
+    stable_at=None
+    last_change=time.monotonic()
+    native_error=None
+    checkpoints=[0,5,10,15,22,30,40,50,60,75,90,105]
+    for scheduled_second in checkpoints:
+        delay=scheduled_second-(time.monotonic()-page_loaded_at)
+        if delay>0:
+            time.sleep(delay)
+        elapsed=round(time.monotonic()-page_loaded_at,2)
+        try:
+            response=driver.execute_async_script(native_js)
+            detections=response.get('results') or []
+            native_error=response.get('error')
+        except Exception as exc:
+            detections=[]
+            native_error=str(exc)[:250]
+        distinct={}
+        for item in detections:
+            if not isinstance(item,dict) or not item.get('name'):
+                continue
+            key=unicodedata.normalize('NFKC',str(item['name'])).casefold()
+            distinct[key]=item
+        current=set(distinct)
+        additions=current-previous
+        removals=previous-current
+        seen.update(current)
+        if len(current)>=best_count and not native_error:
+            best=list(distinct.values())
+            best_count=len(current)
+        if previous!=current:
+            last_change=time.monotonic()
+        previous=current
+        quiet=round(time.monotonic()-last_change,2)
+        point={
+            'secondsAfterPageLoad':elapsed,
+            'detected':len(current),
+            'newNames':len(additions),
+            'lostNames':len(removals),
+            'cumulativeDistinct':len(seen),
+            'quietSeconds':quiet,
+            'error':native_error,
+            'addedExamples':[distinct[k]['name'] for k in sorted(additions)[:15]]
+        }
+        timeline.append(point)
+        print('NATIVE_DETECTION_TIMELINE',json.dumps(point,ensure_ascii=False),flush=True)
+        # Never stop in the first seconds of a page visit: Wappalyzer's delayed
+        # js.js pass and repeated dom.js analyses must have time to complete.
+        if elapsed>=60 and quiet>=20 and len(timeline)>=4 and not native_error:
+            stable_at=elapsed
+            break
+    output['nativeTimeline']=timeline
+    output['nativeDetections']=best
+    output['nativeError']=None if best_count>=1000 else native_error
+    output['nativeSampling']={
+        'firstCount':timeline[0]['detected'] if timeline else 0,
+        'lastCount':timeline[-1]['detected'] if timeline else 0,
+        'peakCount':best_count,
+        'cumulativeDistinct':len(seen),
+        'durationSeconds':timeline[-1]['secondsAfterPageLoad'] if timeline else 0,
+        'stableAtSeconds':stable_at,
+        'stabilized':stable_at is not None,
+        'checkpoints':len(timeline)
+    }
+    print('NATIVE_EXTENSION_RESULT',json.dumps({
+        'count':best_count,'first':output['nativeSampling']['firstCount'],
+        'last':output['nativeSampling']['lastCount'],
+        'peak':best_count,'stabilized':stable_at is not None,
+        'durationSeconds':output['nativeSampling']['durationSeconds'],
+        'sample':[d['name'] for d in best[:20]],
+        'error':output['nativeError']
+    },ensure_ascii=False),flush=True)
+
+    # The DevTools console can log dom.js twice because dependent technologies
+    # trigger additional passes. Record logs, but do not interpret them as two
+    # detections: the resolved technology names are deduplicated above.
+    console_signals=[]
+    resource_signals=[]
+    try:
+        driver.switch_to.window(page_window)
+        for entry in driver.get_log('browser'):
+            msg=entry.get('message','')
+            if re.search(r'(?:dom|js)\.js|wappalyzer',msg,re.I):
+                console_signals.append({
+                    'level':entry.get('level'),
+                    'timestamp':entry.get('timestamp'),
+                    'message':msg[:450]
+                })
+        resource_signals=driver.execute_script("""
+return performance.getEntriesByType('resource')
+  .filter(r=>/chrome-extension:|\/(?:dom|js)\.js(?:\?|$)/i.test(r.name))
+  .map(r=>({url:r.name.slice(0,350),startTime:r.startTime,duration:r.duration}))
+  .slice(-60)
 """)
-        output['nativeError']=native.get('error')
-        output['nativeDetections']=native.get('results') or []
-        print('NATIVE_EXTENSION_RESULT',json.dumps({
-            'count':len(output['nativeDetections']),
-            'sample':[v.get('name') for v in output['nativeDetections'][:25]],
-            'error':output['nativeError'],'tabId':native.get('tabId')
-        },ensure_ascii=False))
     except Exception as exc:
-        output['nativeError']=str(exc)[:600]
-        print('NATIVE_EXTENSION_ERROR',output['nativeError'])
+        print('EXTENSION_INJECTION_DIAGNOSTIC_ERROR',str(exc)[:250])
+    finally:
+        driver.switch_to.window(driver.window_handles[-1])
+    output['injectionDiagnostics']={
+        'consoleSignals':console_signals[-50:],
+        'resourceSignals':resource_signals,
+        'domJsConsoleMentions':sum('dom.js' in x['message'].lower() for x in console_signals),
+        'jsJsConsoleMentions':sum('js.js' in x['message'].lower() for x in console_signals)
+    }
+    print('NATIVE_INJECTION_DIAGNOSTICS',json.dumps({
+        'domJsConsoleMentions':output['injectionDiagnostics']['domJsConsoleMentions'],
+        'jsJsConsoleMentions':output['injectionDiagnostics']['jsJsConsoleMentions'],
+        'scriptResourceSignals':len(resource_signals)
+    }),flush=True)
     output['popupText']=driver.execute_script('return document.body?.innerText||""')
     output['popupHtml']=driver.page_source[:30000]
     pathlib.Path('.selfcheck/extension-probe.json').write_text(json.dumps(output,ensure_ascii=False),encoding='utf-8')
