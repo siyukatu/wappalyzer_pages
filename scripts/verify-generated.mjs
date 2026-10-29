@@ -32,7 +32,8 @@ assert.ok(cookieWrites.length>=100,'Cookie fingerprint bootstrap did not execute
 assert.ok(Object.keys(sandbox).length>300,'Global fingerprint bootstrap did not execute');
 assert.match(headers,/connect-src 'none'/);
 assert.match(headers,/frame-src 'none'/);
-assert.match(html,/wappalyzer-fingerprints" hidden/);
+assert.match(html,/<div id="wappalyzer-fingerprints">/);
+assert.ok(!/<div id="wappalyzer-fingerprints"[^>]*hidden/.test(html),'Detector must not exclude text under hidden attribute');
 assert.match(notFound,/<title>404 Not Found<\/title>/);
 assert.equal(info.ruleSource?.type,'chrome-web-store-crx','Must use Chrome Web Store CRX, not GitHub archive');
 assert.equal(info.ruleSource?.extensionId,'gppongmhjkpfnbhagpmjfkannfbllamg','Unexpected extension ID');
