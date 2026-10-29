@@ -67,7 +67,9 @@ for (const [name, item] of Object.entries(all)) {
     }
   }
 }
-const extras = generateExtras(all, witness, priorityNames, urgentNames);
+const nativeCookieBaseline = JSON.parse(await readFile('data/native-cookie-priority.json','utf8'));
+const nativePreserveNames = new Set([...nativeCookieBaseline.gained,...nativeCookieBaseline.lost]);
+const extras = generateExtras(all, witness, priorityNames, urgentNames, nativePreserveNames);
 const root = rootAttributes(all);
 const compactGlobals = compileGlobals(all, witness);
 const inlineWitnesses = [...inlineSignatures].sort().map(v => '/*' + v.replace(/\*\//g,'* /') + '*/').join('');
