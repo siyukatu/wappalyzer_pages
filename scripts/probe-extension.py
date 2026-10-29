@@ -31,7 +31,7 @@ else:
     binary=shutil.which('google-chrome') or shutil.which('chromium')
     if binary:opts.binary_location=binary
     driver=webdriver.Chrome(options=opts)
-driver.set_script_timeout(70)
+driver.set_script_timeout(18)
 try:
     driver.set_page_load_timeout(120)
     driver.get(URL)
@@ -93,7 +93,10 @@ chrome.tabs.query({}, tabs=>done(tabs.map(x=>({id:x.id,url:x.url,active:x.active
     # Keep the largest observed result as a safeguard against transient empty
     # replies, and record all snapshots for reproducible diagnostics.
     native_js = """
-const done=arguments[arguments.length-1];
+const reply=arguments[arguments.length-1];
+let completed=false;
+const done=value=>{if(!completed){completed=true;reply(value)}};
+setTimeout(()=>done({results:[],error:'Extension background query timed out after 12 seconds'}),12000);
 chrome.tabs.query({},tabs=>{
   const page=tabs.find(t=>(t.url||'').startsWith('https://wappalyzer-technologies.pages.dev/'));
   if(!page){done({results:[],error:'No target Pages tab'});return}
@@ -115,6 +118,9 @@ chrome.tabs.query({},tabs=>{
     native_error=None
     checkpoints=[0,5,10,15,22,30,40,50,60,75,90,105]
     for scheduled_second in checkpoints:
+        if time.monotonic()-page_loaded_at>132:
+            print('NATIVE_SCAN_DEADLINE',round(time.monotonic()-page_loaded_at,2),flush=True)
+            break
         delay=scheduled_second-(time.monotonic()-page_loaded_at)
         if delay>0:
             time.sleep(delay)
