@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Compare a fresh Wappalyzer CSV export against the checked-in baseline.
 // Wappalyzer exports a single row with semicolon-separated names per category.
-// Usage: node scripts/compare.mjs /path/to/new-export.csv
+// Usage: node scripts/compare.mjs /path/to/new-export.csv [--original]
 import { readFile } from 'node:fs/promises';
 const normalize = value => String(value).normalize('NFKC').trim().toLocaleLowerCase('en');
 function parseCSV(text) {
@@ -44,6 +44,14 @@ if(source) {
     readFile(source,'utf8')
   ]);
   const before=new Map(original.detected.map(n=>[normalize(n),n]));
+  if (!process.argv.includes('--original')) {
+    const [lost,gains]=await Promise.all([
+      readFile('data/detection-regressions.json','utf8').then(JSON.parse),
+      readFile('data/detection-gains.json','utf8').then(JSON.parse)
+    ]);
+    for(const n of lost.regressed)before.delete(normalize(n));
+    for(const n of gains.newDetected)before.set(normalize(n),n);
+  }
   const after=extractDetections(csv);
   const gained=[...after].filter(([n])=>!before.has(n)).map(([,v])=>v).sort();
   const lost=[...before].filter(([n])=>!after.has(n)).map(([,v])=>v).sort();
