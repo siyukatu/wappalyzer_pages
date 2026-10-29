@@ -42,7 +42,7 @@ jobs:
           const path='.selfcheck/extension/js/wappalyzer.js';
           const source=fs.readFileSync(path,'utf8');
           console.log('BUNDLED_ENGINE',JSON.stringify({bytes:source.length,hasModuleExports:source.includes('module.exports'),hasSetTechnologies:source.includes('setTechnologies'),hasAnalyze:source.includes('analyze('),head:source.slice(0,200)}));
-          try {const core=require('./'+path);console.log('ENGINE_EXPORTS',JSON.stringify({type:typeof core,keys:Object.keys(core||{}),protos:core && Object.getOwnPropertyNames(Object.getPrototypeOf(core)),functions:['setTechnologies','setCategories','analyze','resolve','analyzeManyToMany'].map(k=>[k,typeof core?.[k]]),tail:source.slice(-1600),exportsSnippet:source.slice(Math.max(0,source.indexOf('module.exports')-130),source.indexOf('module.exports')+260)}));}
+          try {const core=require('./'+path);console.log('ENGINE_EXPORTS',JSON.stringify({type:typeof core,keys:Object.keys(core||{}),protos:core&&typeof core==='object'?Object.getOwnPropertyNames(Object.getPrototypeOf(core)):[],functions:['setTechnologies','setCategories','analyze','resolve','analyzeManyToMany'].map(k=>[k,typeof core?.[k]]),tail:source.slice(-1700),exportsSnippet:source.slice(Math.max(0,source.indexOf('module.exports')-130),source.indexOf('module.exports')+260)}));}
           catch(error){console.log('BUNDLED_REQUIRE_ERROR',error.message.slice(0,600))}
           NODE
       - name: Install Selenium
