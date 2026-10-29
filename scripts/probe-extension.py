@@ -146,6 +146,10 @@ chrome.tabs.query({},tabs=>{
     badge_last_change=time.monotonic()
     last_badge=None
     last_badge_count=None
+    last_raw_count=None
+    raw_last_change=time.monotonic()
+    first_raw_count=None
+    peak_raw_count=0
     last_valid_native_count=None
     first_valid_native_count=None
     last_native_attempt=-100
@@ -211,8 +215,15 @@ chrome.tabs.query({},tabs=>{
             if last_badge_count!=badge_count:
                 badge_last_change=time.monotonic()
             last_badge_count=badge_count
+        tab_raw=badge.get('tabRawMatches')
+        if isinstance(tab_raw,int):
+            if first_raw_count is None:first_raw_count=tab_raw
+            if last_raw_count!=tab_raw:raw_last_change=time.monotonic()
+            last_raw_count=tab_raw
+            peak_raw_count=max(peak_raw_count,tab_raw)
         quiet=round(time.monotonic()-last_change,2)
         badge_quiet=round(time.monotonic()-badge_last_change,2)
+        raw_quiet=round(time.monotonic()-raw_last_change,2)
         point={
             'secondsAfterPageLoad':elapsed,
             'detected':last_valid_native_count,
@@ -224,6 +235,7 @@ chrome.tabs.query({},tabs=>{
             'badgeText':badge_text,
             'badgeCount':badge_count,
             'badgeQuietSeconds':badge_quiet,
+            'rawQuietSeconds':raw_quiet,
             'hostnameRawMatches':badge.get('hostnameRawMatches'),
             'tabRawMatches':badge.get('tabRawMatches'),
             'error':native_error or badge.get('error') or badge.get('storageError'),
@@ -234,7 +246,7 @@ chrome.tabs.query({},tabs=>{
         # The last two badge observations are at least 20 seconds apart and
         # must agree; settle no sooner than a minute after page load.
         if (elapsed>=60 and badge_count is not None and
-            badge_quiet>=20 and len(timeline)>=4 and best_count>=1000):
+            badge_quiet>=20 and raw_quiet>=20 and len(timeline)>=4 and best_count>=1000):
             stable_at=elapsed
             break
     output['nativeTimeline']=timeline
@@ -248,6 +260,9 @@ chrome.tabs.query({},tabs=>{
         'firstBadgeCount':next((p['badgeCount'] for p in timeline if p['badgeCount'] is not None),None),
         'lastBadgeCount':last_badge_count,
         'peakBadgeCount':max((p['badgeCount'] or 0 for p in timeline),default=0),
+        'firstRawMatches':first_raw_count,
+        'lastRawMatches':last_raw_count,
+        'peakRawMatches':peak_raw_count,
         'durationSeconds':timeline[-1]['secondsAfterPageLoad'] if timeline else 0,
         'stableAtSeconds':stable_at,
         'stabilized':stable_at is not None,
@@ -258,7 +273,9 @@ chrome.tabs.query({},tabs=>{
         'count':best_count,'first':first_valid_native_count,
         'last':last_valid_native_count,
         'peakBadge':output['nativeSampling']['peakBadgeCount'],
-        'lastBadge':last_badge_count,'stabilized':stable_at is not None,
+        'lastBadge':last_badge_count,
+        'firstRaw':first_raw_count,'lastRaw':last_raw_count,'peakRaw':peak_raw_count,
+        'stabilized':stable_at is not None,
         'durationSeconds':output['nativeSampling']['durationSeconds'],
         'sample':[d['name'] for d in best[:20]],
         'error':output['nativeError']
@@ -273,7 +290,7 @@ chrome.tabs.query({},tabs=>{
         driver.switch_to.window(page_window)
         for entry in driver.get_log('browser'):
             msg=entry.get('message','')
-            if re.search(r'(?:dom|js)\.js|wappalyzer',msg,re.I):
+            if re.search(r'(?:dom|js)\.js|chrome-extension:|wappalyzer:response|wappalyzer:detach',msg,re.I):
                 console_signals.append({
                     'level':entry.get('level'),
                     'timestamp':entry.get('timestamp'),
@@ -290,7 +307,7 @@ return performance.getEntriesByType('resource')
     finally:
         driver.switch_to.window(popup_window)
     output['injectionDiagnostics']={
-        'consoleSignals':console_signals[-50:],
+        'consoleSignals':console_signals[-70:],
         'resourceSignals':resource_signals,
         'domJsConsoleMentions':sum('dom.js' in x['message'].lower() for x in console_signals),
         'jsJsConsoleMentions':sum('js.js' in x['message'].lower() for x in console_signals)
