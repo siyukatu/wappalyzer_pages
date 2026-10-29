@@ -1,0 +1,41 @@
+{
+  "description": "Native Wappalyzer CRX 6.12.8 cookie-selection guard; measured gained and lost technologies",
+  "baselineScan": 40959779658,
+  "priorNative": 4134,
+  "currentNative": 4149,
+  "gained": [
+    "Akamai Bot Manager",
+    "Amazon ALB",
+    "Blesta",
+    "Foodomaa",
+    "Fortinet FortiGate",
+    "IP2Location.io",
+    "Invenio",
+    "NetSuite",
+    "Paymenter",
+    "Play",
+    "Pterodactyl Panel",
+    "Revel",
+    "ShopGold",
+    "SimpleSAMLphp",
+    "Simplero Websites",
+    "SoteShop",
+    "SpiritShop",
+    "TN Express Web",
+    "Tessitura",
+    "Totara",
+    "Websale",
+    "Zimbra",
+    "osTicket"
+  ],
+  "lost": [
+    "Absorb",
+    "Algolia",
+    "Chatwoot",
+    "Chorus",
+    "EcForce",
+    "Gauges",
+    "Kicksite",
+    "Nextcloud"
+  ]
+}
