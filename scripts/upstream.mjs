@@ -7,6 +7,7 @@ function parseArchive(gzip) {
   const tar=gunzipSync(gzip,{maxOutputLength:400*1024*1024});
   let offset=0;
   const sources=new Map();
+  const extras=Object.create(null);
   while(offset+512<=tar.length) {
     const header=tar.subarray(offset,offset+512);
     if(header.every(b=>b===0))break;
@@ -17,6 +18,9 @@ function parseArchive(gzip) {
     const type=String.fromCharCode(header[156]);
     if(!Number.isSafeInteger(size)||size<0||offset+512+size>tar.length)throw new Error('Invalid upstream tar entry');
     const match=/^[^/]+\/src\/technologies\/([^/]+\.json)$/.exec(path);
+    if (/^[^/]+\/src\/(?:categories\.json|js\/wappalyzer\.js)$/.test(path) && size<2000000) {
+      extras[path.endsWith('categories.json')?'categories':'engine']=tar.subarray(offset+512,offset+512+size).toString('utf8');
+    }
     if(match && (type==='0'||type==='\0') && size<10*1024*1024) {
       const key=match[1];
       if(sources.has(key))throw new Error('Duplicate upstream rules file: '+key);
@@ -33,7 +37,7 @@ function parseArchive(gzip) {
     if(Object.hasOwn(technologies,name))throw new Error('Duplicate technology: '+name);
     Object.defineProperty(technologies,name,{value:definition,writable:true,enumerable:true,configurable:true});
   }
-  return {files:names,technologies};
+  return {files:names,technologies,extras};
 }
 export async function fetchTechnologyRules() {
   const response=await fetch(ARCHIVE,{headers:{'User-Agent':'wappalyzer-pages-builder','Accept':'application/gzip'},signal:AbortSignal.timeout(120000)});
