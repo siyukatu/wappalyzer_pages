@@ -154,9 +154,9 @@ chrome.tabs.query({},tabs=>{
     first_valid_native_count=None
     last_native_attempt=-100
     last_native_error=None
-    checkpoints=[0,5,10,15,22,30,40,50,60,75,90,105]
+    checkpoints=[0,5,10,15,22,30,40,50,60,75,90,105,120,150,180,210,240]
     for scheduled_second in checkpoints:
-        if time.monotonic()-page_loaded_at>132:
+        if time.monotonic()-page_loaded_at>270:
             print('NATIVE_SCAN_DEADLINE',round(time.monotonic()-page_loaded_at,2),flush=True)
             break
         delay=scheduled_second-(time.monotonic()-page_loaded_at)
@@ -301,7 +301,7 @@ chrome.tabs.query({},tabs=>{
 return performance.getEntriesByType('measure')
   .filter(m=>/Wappalyzer/i.test(m.name))
   .map(m=>({name:m.name,startTime:m.startTime,duration:m.duration}))
-  .slice(-80)
+  .slice(-400)
 """)
         resource_signals=driver.execute_script("""
 return performance.getEntriesByType('resource')
