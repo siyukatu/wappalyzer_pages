@@ -6,6 +6,7 @@ import { generateExtras, emitHeaders } from './enrich.mjs';
 import { compileGlobals } from './globals.mjs';
 import { witness } from './regex-witness.mjs';
 import { readFile } from 'node:fs/promises';
+import { coverage } from './coverage.mjs';
 
 const API = 'https://api.github.com/repos/HTTPArchive/wappalyzer/contents/src/technologies?ref=main';
 const OUT = 'dist';
@@ -30,6 +31,8 @@ for (let i = 0; i < files.length; i += 5) {
     Object.assign(all, data);
   }));
 }
+const baseline = JSON.parse(await readFile('data/detected-baseline.json','utf8'));
+const baselineCoverage = coverage(all, baseline);
 const counts = {};
 const inlineSignatures = new Set();
 const meta = new Map(), scripts = new Set(), links = new Set(), dom = new Set(), text = new Set(), globals = new Set(), htmlAttrs = new Map();
@@ -106,6 +109,7 @@ await writeFile(OUT + '/index.html', html);
 await writeFile(OUT + '/_headers', emitHeaders(hash, extras, styleHash));
 await writeFile(OUT + '/404.html', '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><title>404 Not Found</title></head><body><h1>404 Not Found</h1><a href="/">Home</a></body></html>\n');
 await writeFile(OUT + '/robots.txt', 'User-agent: *\nDisallow: /\n');
+await writeFile(OUT + '/coverage.json', JSON.stringify(baselineCoverage, null, 2));
 await writeFile(OUT + '/build-info.json', JSON.stringify({ generatedAt: new Date().toISOString(), ruleFiles: files.length, technologies: Object.keys(all).length, signatures: { meta: meta.size, scriptSrc: scripts.size, link: links.size, dom: dom.size, text: text.size, js: compactGlobals.stats.globalPaths, scriptText: inlineSignatures.size }, channels: counts, extras: extras.stats, globals: compactGlobals.stats }, null, 2));
 console.log('Generated ' + Object.keys(all).length + ' technology candidates from ' + files.length + ' upstream JSON files.');
 console.log('index.html bytes: ' + Buffer.byteLength(html));
