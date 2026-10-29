@@ -158,10 +158,10 @@ export function generateExtras(all, witness) {
       syntheticHeaderFields: headers.count, syntheticHeaderMatches:headers.approxMatches, syntheticHeaderBytes: headers.bytes}
   };
 }
-export function emitHeaders(hash, extras) {
+export function emitHeaders(hash, extras, styleHash) {
   const csp = [
     "default-src 'none'", "script-src 'sha256-" + hash + "'",
-    "script-src-attr 'none'", "style-src 'none'", "img-src 'none'",
+    "script-src-attr 'none'", "style-src 'sha256-" + styleHash + "'", "style-src-attr 'none'", "img-src 'none'",
     "font-src 'none'", "connect-src 'none'", "frame-src 'none'",
     "child-src 'none'", "worker-src 'none'", "media-src 'none'",
     "manifest-src 'none'", "object-src 'none'", "form-action 'none'",
