@@ -123,13 +123,30 @@ function selectHeaders(all, witness, missingNames = new Set(), urgentNames = new
   return {lines, count:lines.length, approxMatches:score, bytes:total};
 }
 export function generateExtras(all, witness, missingNames = new Set(), urgentNames = new Set()) {
-  const dom = new Set(), comments = new Set(), cookieValues = new Map(), js = new Map();
+  const dom = new Set(), comments = new Set(), cookieValues = new Map(), js = new Map(), domProperties = new Map();
   let domRuleCount = 0, cookieRuleCount=0;
   for (const [techName, tech] of Object.entries(all)) {
     const dr = tech?.dom;
     const selectors = typeof dr === 'string' || Array.isArray(dr) ? values(dr) : Object.keys(dr || {});
     for (const sel of selectors) {
       domRuleCount++;
+      // The extension tests own DOM element properties, which plain HTML
+      // attributes cannot synthesize. Create safe own-property witnesses before
+      // the extension's document_idle scan, using a DOMContentLoaded callback.
+      const variants=dr && !Array.isArray(dr) && typeof dr==='object' ? values(dr[sel]) : [];
+      for(const variant of variants) {
+        if(!variant || typeof variant!=='object')continue;
+        for(const [property,patterns] of entries(variant.properties)) {
+          if(!/^[a-z_$][\w$-]{0,65}$/i.test(property) ||
+             /^(?:on[a-z]+|__proto__|prototype|constructor|innerHTML|outerHTML|src|href|style|className|id|textContent)$/i.test(property))continue;
+          for(const pattern of values(patterns)) {
+            const val=typeof pattern==='string' && pattern.split('\\;')[0]==='' ? '1' : witness(pattern);
+            if(typeof val!=='string'||val.length>180||/[\r\n]/.test(val))continue;
+            const key=JSON.stringify([sel,property,val]);
+            if(domProperties.size<1200)domProperties.set(key,[sel,property,val]);
+          }
+        }
+      }
       for (const piece of String(sel).split(/,(?![^\[]*\])/)) {
         const markup = selectorMarkup(piece);
         if (markup) dom.add(markup);
@@ -193,12 +210,14 @@ export function generateExtras(all, witness, missingNames = new Set(), urgentNam
   const cookieList = [...cookieValues].sort((a,b)=>b[1].priority-a[1].priority || a[0].localeCompare(b[0])).slice(0,170).reverse().map(([name,obj])=>[name,obj.value]);
   const cookieScript = 'for(const [name,value] of ' + JSON.stringify(cookieList) +
     '){try{document.cookie=name+"="+encodeURIComponent(value)+"; Path=/; SameSite=Lax; Secure";}catch{}}\n';
+  const propJSON=JSON.stringify([...domProperties.values()]).replace(/</g,'\\u003c');
+  const propertyScript = 'if(typeof document.addEventListener==="function")document.addEventListener("DOMContentLoaded",()=>{for(const [selector,property,value] of '+propJSON+'){try{for(const element of document.querySelectorAll(selector)){Object.defineProperty(element,property,{value,writable:true,configurable:true})}}catch{}}});';
   const headers = selectHeaders(all,witness,missingNames,urgentNames);
   const body = [...dom].join('') + [...comments].join('');
   return {
-    bootstrap: cookieScript,
+    bootstrap: cookieScript + propertyScript,
     body, headers,
-    stats: {additionalDom:dom.size, htmlComments:comments.size, cookies:cookieList.length, upstreamDomSelectors:domRuleCount, upstreamCookieRules:cookieRuleCount,
+    stats: {additionalDom:dom.size, htmlComments:comments.size, syntheticDomProperties:domProperties.size, cookies:cookieList.length, upstreamDomSelectors:domRuleCount, upstreamCookieRules:cookieRuleCount,
       syntheticHeaderFields: headers.count, syntheticHeaderMatches:headers.approxMatches, syntheticHeaderBytes: headers.bytes}
   };
 }
