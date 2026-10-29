@@ -88,7 +88,7 @@ const html = '<!doctype html>\n<html lang="en"><head><meta charset="utf-8">\n' +
   '<!-- Synthetic signatures only; named technologies are NOT necessarily installed. -->\n' +
   '<div id="wappalyzer-fingerprints" hidden>\n' +
   extras.body + '\n' +
-  [...dom].join('\n') + '\n<div hidden>' + [...text].map(escape).join(' ') + '</div>\n' +
+  [...dom].join('\n') + '\n<div>' + [...text].map(escape).join(' ') + '</div>\n' +
   '</div>\n</body></html>\n';
 // All dynamic content is emitted at build time; no Cloudflare Functions.
 await mkdir(OUT, { recursive: true });
