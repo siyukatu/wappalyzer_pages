@@ -13,6 +13,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Probe Chrome Web Store CRX contents
+        run: node --input-type=module -e "import('./scripts/store-rules.mjs').then(async m=>console.log(JSON.stringify((await m.fetchStoreRules()).source)))"
       - name: Generate HTML from upstream Wappalyzer rules
         run: npm run build
       - name: Assert outputs exist
