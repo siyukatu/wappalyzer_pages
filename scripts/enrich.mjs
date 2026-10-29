@@ -28,6 +28,20 @@ function selectorMarkup(raw) {
   // One compound selector. Skip combinators and pseudo selectors rather
   // than claim matches for complex DOM relationships we cannot satisfy.
   const s = raw.trim();
+  // Simple descendant / child chains are useful for many Wappalyzer DOM rules.
+  // Keep only relationship markup that can be produced without remote code.
+  if(!/[~+:]/.test(s) && /[\s>]/.test(s)) {
+    const pieces=s.replace(/\s*>\s*/g,' ').split(/\s+(?![^\[]*\])/).filter(Boolean);
+    if(pieces.length>1 && pieces.length<=5) {
+      let nested='';
+      for(const part of pieces.reverse()) {
+        const markup=selectorMarkup(part);
+        if(!markup || !/<\/[a-z][\w-]*>$/i.test(markup)) {nested='';break;}
+        nested=markup.replace(/(<\/[a-z][\w-]*>)$/i,nested+'$1');
+      }
+      if(nested)return nested;
+    }
+  }
   if (/[>:~+]/.test(s) || /\s(?![^\[]*\])/.test(s)) return null;
   const tag = s.match(/^[a-z][a-z0-9-]*/i)?.[0] || 'div';
   if (['html','body','head','meta','title','base'].includes(tag.toLowerCase())) return null;
@@ -143,6 +157,14 @@ export function generateExtras(all, witness, missingNames = new Set()) {
           }else enhanced=enhanced.replace(/(\/?>)$/,' '+attr+'="'+escaped(val)+'"$1');
         }
         if(enhanced!==markup)dom.add(enhanced);
+        for (const rule of values(detail.text)) {
+          const content = rule === '' ? '' : witness(rule);
+          if(content === null || content.length>200 || /[\r\n]/.test(content)) continue;
+          const m=/^<([a-z][\w-]*)\b[^>]*>([\s\S]*)<\/\1>$/i.exec(enhanced);
+          if(!m)continue;
+          const end='</'+m[1]+'>';
+          dom.add(enhanced.slice(0,-end.length)+escaped(content)+end);
+        }
       }
     }
     for (const rule of values(tech?.html)) {
@@ -161,9 +183,7 @@ export function generateExtras(all, witness, missingNames = new Set()) {
   const cookieScript = 'for(const [name,value] of ' + JSON.stringify(cookieList) +
     '){try{document.cookie=name+"="+encodeURIComponent(value)+"; Path=/; SameSite=Lax";}catch{}}\n';
   const headers = selectHeaders(all,witness,missingNames);
-  const body = '<!-- Additional simple DOM selectors generated from upstream rules -->\n' + [...dom].join('\n') +
-    '\n<!-- Literal HTML-regex witnesses (inert comments; not active code) -->\n' +
-    [...comments].map(c=>'<!-- signature: ' + c + ' -->').join('\n');
+  const body = [...dom].join('') + [...comments].map(c=>'<!--'+c+'-->').join('');
   return {
     bootstrap: cookieScript,
     body, headers,
