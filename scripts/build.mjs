@@ -8,6 +8,7 @@ import { witness } from './regex-witness.mjs';
 import { readFile } from 'node:fs/promises';
 import { coverage } from './coverage.mjs';
 import { makePassiveUrlCandidates } from './passive-urls.mjs';
+import { cssFingerprints } from './css-witness.mjs';
 
 const API = 'https://api.github.com/repos/HTTPArchive/wappalyzer/contents/src/technologies?ref=main';
 const OUT = 'dist';
@@ -80,14 +81,15 @@ for (const [name, item] of Object.entries(all)) {
 }
 const extras = generateExtras(all, witness, priorityNames);
 const compactGlobals = compileGlobals(all, witness);
-const inlineWitnesses = [...inlineSignatures].sort().map(v => '/* wappalyzer-scripts-signature: ' + v.replace(/\*\//g,'* /') + ' */').join('\n');
+const inlineWitnesses = [...inlineSignatures].sort().map(v => '/*' + v.replace(/\*\//g,'* /') + '*/').join('');
 const bootstrap = (compactGlobals.source + ';' + extras.bootstrap + ';' + inlineWitnesses).replace(/[\r\n]/g,'');
 const hash = createHash('sha256').update(bootstrap).digest('base64');
 /* Static Pages cannot issue a fresh per-response nonce. Use CSP SHA-256 instead.
  * Hide the entire synthetic fingerprint body while keeping its DOM accessible.
  * The iframe/object/embed rule also protects against markup that escapes the wrapper.
  */
-const concealCss = 'html,body{margin:0!important;padding:0!important}body{display:none!important}iframe,object,embed{display:none!important}';
+const cssMarkers = cssFingerprints(all, witness);
+const concealCss = 'html{overflow-x:hidden!important}body{position:fixed!important;left:-200vw!important;top:0!important;width:1px!important;height:1px!important;overflow:hidden!important;opacity:0!important}#wappalyzer-fingerprints[hidden]{display:block!important}iframe,object,embed{display:none!important}' + cssMarkers.css;
 const styleHash = createHash('sha256').update(concealCss).digest('base64');
 const html = '<!doctype html>\n<html lang="en"><head><meta charset="utf-8">\n' +
   '<title>Wappalyzer fingerprint benchmark (synthetic)</title>\n' +
@@ -113,6 +115,6 @@ await writeFile(OUT + '/404.html', '<!doctype html><html lang="en"><head><meta c
 await writeFile(OUT + '/robots.txt', 'User-agent: *\nDisallow: /\n');
 await writeFile(OUT + '/coverage.json', JSON.stringify(latestCoverage, null, 2));
 await writeFile(OUT + '/coverage-original.json', JSON.stringify(baselineCoverage, null, 2));
-await writeFile(OUT + '/build-info.json', JSON.stringify({ generatedAt: new Date().toISOString(), ruleFiles: files.length, technologies: Object.keys(all).length, signatures: { meta: meta.size, scriptSrc: scripts.size, link: links.size, dom: dom.size, text: text.size, js: compactGlobals.stats.globalPaths, scriptText: inlineSignatures.size, regressedPrioritized: regressed.regressed.length }, channels: counts, extras: extras.stats, globals: compactGlobals.stats }, null, 2));
+await writeFile(OUT + '/build-info.json', JSON.stringify({ generatedAt: new Date().toISOString(), ruleFiles: files.length, technologies: Object.keys(all).length, signatures: { meta: meta.size, scriptSrc: scripts.size, link: links.size, dom: dom.size, text: text.size, js: compactGlobals.stats.globalPaths, scriptText: inlineSignatures.size, cssRules: cssMarkers.rules, regressedPrioritized: regressed.regressed.length }, channels: counts, extras: extras.stats, globals: compactGlobals.stats }, null, 2));
 console.log('Generated ' + Object.keys(all).length + ' technology candidates from ' + files.length + ' upstream JSON files.');
 console.log('index.html bytes: ' + Buffer.byteLength(compactHtml));
