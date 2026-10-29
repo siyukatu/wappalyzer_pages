@@ -38,3 +38,9 @@ Documentation: https://developers.cloudflare.com/pages/configuration/headers/ an
 ## Invisible fingerprint page
 
 The generated index now contains an inline `<style id="wappalyzer-conceal">` that applies `body { display: none !important }` and hides `iframe`, `object`, and `embed` elements explicitly. Fingerprint DOM nodes remain in the source and in the document. A `hidden` wrapper offers an additional fallback. The CSP `style-src` permits **only the SHA-256 hash** of this exact generated style, without `unsafe-inline`. A fixed nonce would not provide meaningful request-specific security on a static Cloudflare Pages deployment. JavaScript remains governed by a separate hashed `script-src` directive. No Functions are needed.
+
+## Compact global fingerprint synthesis
+
+`scripts/globals.mjs` generates **one prefix-sharing property tree** from all `js` technology rules instead of repeating JavaScript assignments or maintaining two independent lists. Candidate values are verified against the source rule's regular expression; unsupported patterns fall back to an object placeholder. Unsafe global names and prototype-sensitive keys are skipped. Nested paths preserve their parent object shape, and the one-page CSP script hash is recalculated at each build.
+
+`dist/build-info.json` reports `globals.globalPaths`, `globals.globalPatternMatches`, `globals.globalTreeBytes` and `globals.globalScriptBytes`. These are generation metrics, not confirmed Wappalyzer detections.
