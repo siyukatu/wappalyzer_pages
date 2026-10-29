@@ -35,7 +35,14 @@ try:
     driver.set_page_load_timeout(120)
     driver.get(URL)
     WebDriverWait(driver,30).until(lambda d:d.execute_script('return document.readyState')=='complete')
-    time.sleep(4)
+    expected=os.getenv('EXPECTED_COMMIT')
+    head_commit=driver.execute_script(
+        'return document.querySelector(\'meta[name="wappalyzer-pages-commit"]\')?.content||null')
+    if expected and head_commit!=expected:
+        raise RuntimeError('Native CRX scan reached stale Pages commit '+str(head_commit)+
+                           ', expected '+expected)
+    print('NATIVE_PAGE_COMMIT',head_commit,flush=True)
+    time.sleep(5)
     targets=driver.execute_cdp_cmd('Target.getTargets',{}).get('targetInfos',[])
     extTargets=[{'type':x.get('type'),'url':x.get('url','')[:350]} for x in targets if x.get('url','').startswith('chrome-extension://')]
     ids=sorted(set(re.findall(r'chrome-extension://([a-p]{32})/',json.dumps(extTargets))))
