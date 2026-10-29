@@ -44,3 +44,19 @@ The generated index now contains an inline `<style id="wappalyzer-conceal">` tha
 `scripts/globals.mjs` generates **one prefix-sharing property tree** from all `js` technology rules instead of repeating JavaScript assignments or maintaining two independent lists. Candidate values are verified against the source rule's regular expression; unsupported patterns fall back to an object placeholder. Unsafe global names and prototype-sensitive keys are skipped. Nested paths preserve their parent object shape, and the one-page CSP script hash is recalculated at each build.
 
 `dist/build-info.json` reports `globals.globalPaths`, `globals.globalPatternMatches`, `globals.globalTreeBytes` and `globals.globalScriptBytes`. These are generation metrics, not confirmed Wappalyzer detections.
+
+## Compare against the user-exported detection baseline
+
+The original Wappalyzer CSV export was normalized into `data/detected-baseline.json` (2,841 unique technology names). Each build emits `dist/coverage.json`, comparing the *current* Wappalyzer rule names with this historical baseline, including unresolved names and their detection channels.
+
+Re-export the live site from Wappalyzer after Cloudflare Pages redeploys, then run:
+
+```sh
+node scripts/compare.mjs ./new-wappalyzer-export.csv
+```
+
+This displays **newly detected** and **no-longer detected** names, their totals, and net change. A successful build only verifies generated signatures and CSP hashes, **not actual Wappalyzer detection** at the live URL.
+
+The updated regex witness generator (`scripts/regex-witness.mjs`) correctly handles optional groups and character classes in substantially more rules. Empty meta/header rules are treated as presence checks. The generator adds inert inline-script signatures, stronger DOM attribute witnesses, and valid relative `scriptSrc` URLs. The `_headers` generation now prioritizes technologies missing from the original CSV.
+
+See [Detection gap analysis](docs/detection-gap-analysis.md) for measurements, examples, and limitations.
