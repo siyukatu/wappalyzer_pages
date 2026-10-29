@@ -47,6 +47,16 @@ jobs:
           console.log('BUNDLED_TAIL',source.slice(-1700));
           console.log('BUNDLED_EXPORT_CONTEXT',source.slice(Math.max(0,source.indexOf('module.exports')-130),source.indexOf('module.exports')+260));
           NODE
+      - name: Attach unpacked extension's matching-module source for exact-engine compatibility analysis
+        uses: actions/upload-artifact@v4
+        with:
+          name: wappalyzer-extension-engine-debug
+          path: |
+            .selfcheck/extension/js/wappalyzer.js
+            .selfcheck/extension/js/index.js
+            .selfcheck/extension/js/content.js
+            .selfcheck/extension/js/background.js
+          retention-days: 1
       - name: Install Selenium
         run: python -m pip install 'selenium>=4.35,<5'
       - name: Inspect real extension engine, popup, and local storage in Selenium
