@@ -9,30 +9,13 @@ import { readFile } from 'node:fs/promises';
 import { coverage } from './coverage.mjs';
 import { makePassiveUrlCandidates } from './passive-urls.mjs';
 import { cssFingerprints } from './css-witness.mjs';
+import { fetchTechnologyRules } from './upstream.mjs';
 
-const API = 'https://api.github.com/repos/HTTPArchive/wappalyzer/contents/src/technologies?ref=main';
 const OUT = 'dist';
-const headers = { 'Accept': 'application/vnd.github+json', 'User-Agent': 'wappalyzer-pages-builder' };
-const get = async (url) => {
-  const response = await fetch(url, { headers, signal: AbortSignal.timeout(60000) });
-  if (!response.ok) throw new Error('Fetch failed: ' + response.status + ' ' + url);
-  return response.json();
-};
 const escape = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 const values = (x) => Array.isArray(x) ? x : x == null ? [] : [x];
 const entries = (obj) => obj && typeof obj === 'object' && !Array.isArray(obj) ? Object.entries(obj) : [];
-const unique = (arr) => [...new Set(arr)];
-const listing = await get(API);
-const files = listing.filter((f) => f.type === 'file' && f.name.endsWith('.json')).sort((a, b) => a.name.localeCompare(b.name));
-if (files.length < 20) throw new Error('Unexpectedly small rule list; refusing partial build');
-const all = {};
-// Limit concurrency to reduce upstream load.
-for (let i = 0; i < files.length; i += 5) {
-  await Promise.all(files.slice(i, i + 5).map(async (file) => {
-    const data = await get(file.download_url);
-    Object.assign(all, data);
-  }));
-}
+const {files,technologies:all,downloadBytes:upstreamBytes} = await fetchTechnologyRules();
 const baseline = JSON.parse(await readFile('data/detected-baseline.json','utf8'));
 const baselineCoverage = coverage(all, baseline);
 const missingBaseline = new Set(baselineCoverage.missing.map(x => x.name));
@@ -115,6 +98,6 @@ await writeFile(OUT + '/404.html', '<!doctype html><html lang="en"><head><meta c
 await writeFile(OUT + '/robots.txt', 'User-agent: *\nDisallow: /\n');
 await writeFile(OUT + '/coverage.json', JSON.stringify(latestCoverage, null, 2));
 await writeFile(OUT + '/coverage-original.json', JSON.stringify(baselineCoverage, null, 2));
-await writeFile(OUT + '/build-info.json', JSON.stringify({ generatedAt: new Date().toISOString(), ruleFiles: files.length, technologies: Object.keys(all).length, signatures: { meta: meta.size, scriptSrc: scripts.size, link: links.size, dom: dom.size, text: text.size, js: compactGlobals.stats.globalPaths, scriptText: inlineSignatures.size, cssRules: cssMarkers.rules, regressedPrioritized: regressed.regressed.length }, channels: counts, extras: extras.stats, globals: compactGlobals.stats }, null, 2));
+await writeFile(OUT + '/build-info.json', JSON.stringify({ generatedAt: new Date().toISOString(), ruleFiles: files.length, upstreamArchiveBytes: upstreamBytes, technologies: Object.keys(all).length, signatures: { meta: meta.size, scriptSrc: scripts.size, link: links.size, dom: dom.size, text: text.size, js: compactGlobals.stats.globalPaths, scriptText: inlineSignatures.size, cssRules: cssMarkers.rules, regressedPrioritized: regressed.regressed.length }, channels: counts, extras: extras.stats, globals: compactGlobals.stats }, null, 2));
 console.log('Generated ' + Object.keys(all).length + ' technology candidates from ' + files.length + ' upstream JSON files.');
 console.log('index.html bytes: ' + Buffer.byteLength(compactHtml));
