@@ -201,13 +201,24 @@ export function generateExtras(all, witness, missingNames = new Set(), urgentNam
       cookieRuleCount++;
       if (!/^[a-z0-9_!#$%&'*+.^|~-]{1,80}$/i.test(name)) continue;
       const sample = values(raw).map(witness).find(v => typeof v === 'string' && /^[a-z0-9_.-]{1,80}$/i.test(v)) || '1';
-      const priority = urgentNames.has(techName) ? 100 : missingNames.has(techName) ? 10 : 0;
+      // Give scarce first-party cookie slots to technologies that cannot be
+      // detected through any other static Pages signal.
+      const alternatives=['headers','meta','js','dom','scriptSrc','scripts','css',
+        'html','text','url','xhr','robots','dns','probe','certIssuer'];
+      const cookieOnly=alternatives.every(k=>{
+        const v=tech?.[k];
+        return v==null || (Array.isArray(v)&&v.length===0) ||
+          (typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).length===0);
+      });
+      const priority = urgentNames.has(techName) ? 1200 : cookieOnly ? 900 : missingNames.has(techName) ? 10 : 0;
       const prior = cookieValues.get(name);
-      if (!prior || priority>prior.priority) cookieValues.set(name,{value:sample,priority});
+      if (!prior || priority>prior.priority) cookieValues.set(name,{value:sample,priority,cookieOnly});
     }
 
   }
-  const cookieList = [...cookieValues].sort((a,b)=>b[1].priority-a[1].priority || a[0].localeCompare(b[0])).slice(0,179).reverse().map(([name,obj])=>[name,obj.value]);
+  const chosenCookies=[...cookieValues].sort((a,b)=>b[1].priority-a[1].priority || a[0].localeCompare(b[0])).slice(0,179);
+  const cookieOnlyChosen=chosenCookies.filter(([,value])=>value.cookieOnly).length;
+  const cookieList=chosenCookies.reverse().map(([name,obj])=>[name,obj.value]);
   const cookieScript = 'for(const [name,value] of ' + JSON.stringify(cookieList) +
     '){try{document.cookie=name+"="+encodeURIComponent(value)+"; Path=/; SameSite=Lax; Secure";}catch{}}\n';
   const propJSON=JSON.stringify([...domProperties.values()]).replace(/</g,'\\u003c');
@@ -217,7 +228,7 @@ export function generateExtras(all, witness, missingNames = new Set(), urgentNam
   return {
     bootstrap: cookieScript + propertyScript,
     body, headers,
-    stats: {additionalDom:dom.size, htmlComments:comments.size, syntheticDomProperties:domProperties.size, cookies:cookieList.length, upstreamDomSelectors:domRuleCount, upstreamCookieRules:cookieRuleCount,
+    stats: {additionalDom:dom.size, htmlComments:comments.size, syntheticDomProperties:domProperties.size, cookies:cookieList.length, cookieOnlyChosen, upstreamDomSelectors:domRuleCount, upstreamCookieRules:cookieRuleCount,
       syntheticHeaderFields: headers.count, syntheticHeaderMatches:headers.approxMatches, syntheticHeaderBytes: headers.bytes}
   };
 }
