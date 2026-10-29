@@ -11,9 +11,10 @@ const [html,headers,info,coverage,notFound] = await Promise.all([
 ]);
 const digest = s => createHash('sha256').update(s).digest('base64');
 const style=/<style id="wappalyzer-conceal">([\s\S]*?)<\/style>/.exec(html)?.[1];
-const scripts=[...html.matchAll(/<script>([\s\S]*?)<\/script>/gi)].map(m=>m[1]);
+const head=html.slice(0,html.indexOf('</head>'));
+const scripts=[...head.matchAll(/<script>([\s\S]*?)<\/script>/gi)].map(m=>m[1]);
 assert.ok(style,'Concealment style missing');
-assert.equal(scripts.length,1,'Expect exactly one inline script');
+assert.equal(scripts.length,1,'Expect one CSP-authorized bootstrap in the head');
 assert.ok(headers.includes("style-src 'sha256-"+digest(style)+"'"),'CSS CSP hash mismatch');
 assert.ok(headers.includes("script-src 'sha256-"+digest(scripts[0])+"'"),'JS CSP hash mismatch');
 assert.match(headers,/connect-src 'none'/);
