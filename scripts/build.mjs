@@ -91,7 +91,7 @@ const deploymentMeta = '<meta name="wappalyzer-pages-commit" content="'+escape(s
   '<meta name="wappalyzer-pages-rules-version" content="'+escape(ruleSource.version)+'">'+
   '<meta name="wappalyzer-pages-rules-sha256" content="'+escape(ruleSource.sha256)+'">';
 const html = '<!doctype html>\n<html lang="en"'+root.html+'><head><meta charset="utf-8">'+deploymentMeta+'\n' +
-  extras.head + '<title>Wappalyzer fingerprint benchmark (synthetic)</title>\n' +
+  '<title>Wappalyzer fingerprint benchmark (synthetic)</title>\n' +
   '<meta name="robots" content="noindex,nofollow,noarchive">\n' +
   '<style id="wappalyzer-conceal">' + concealCss + '</style>\n' +
   [...meta.values()].flatMap(([name,val]) => {
