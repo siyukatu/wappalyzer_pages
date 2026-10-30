@@ -244,9 +244,9 @@ export function generateExtras(all, witness, missingNames = new Set(), urgentNam
   // The browser probe independently confirmed 110 regular + 110 partitioned
   // cookies coexist and are visible to document.cookie on this origin.
   // Never replace existing 180 ordinary cookies with these extra candidates.
-  // Trial: use 20 additional CHIPS candidates without replacing any of the
-  // 180 ordinary or first 145 partitioned cookie witnesses.
-  const partitionedCookies=orderedCookies.slice(180,345);
+  // Trial: fill the last 15 CHIPS candidate slots while preserving all
+  // 180 ordinary and the first 165 partitioned cookie witnesses.
+  const partitionedCookies=orderedCookies.slice(180,360);
   const nativePreservedChosen=chosenCookies.filter(([,value])=>value.priority>=1200).length;
   const cookieOnlyChosen=chosenCookies.filter(([,value])=>value.cookieOnly).length;
   const cookieList=chosenCookies.reverse().map(([name,obj])=>[name,obj.value]);
