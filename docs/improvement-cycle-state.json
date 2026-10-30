@@ -12,58 +12,57 @@
     "verified": true
   },
   "lastExperiment": {
-    "id": "partitioned-cookie-20",
-    "hypothesis": "20 unused CHIPS partitioned cookie slots can add native matches without evicting 180 ordinary plus 145 existing partitioned witnesses",
+    "id": "partitioned-cookie-final-15",
+    "hypothesis": "Use remaining 15 CHIPS witness slots while retaining all previous 180 regular and 165 partitioned cookies.",
     "status": "measured-gain-adopted",
-    "before": 4224,
-    "after": 4226,
+    "before": 4226,
+    "after": 4227,
+    "net": 1,
     "gained": [
-      "H2O",
-      "HTTP/2"
+      "Kitcart"
     ],
     "lost": [],
-    "net": 2,
-    "sourceCommitBefore": "91013510a148164b7f6a081d0fad9505be06a940",
-    "experimentCommit": "fae903e55a8bf2eb8cfb8d6d169036877be26ed4",
+    "experimentCommit": "da5363e88ae228b0d4b2b2867002da68e9e5e6ff",
+    "priorCommit": "fae903e55a8bf2eb8cfb8d6d169036877be26ed4",
     "changedFiles": [
       "scripts/enrich.mjs"
     ],
-    "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41113999181",
-    "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41114037745",
+    "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41114612253",
+    "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41114644118",
     "crxVersion": "6.12.8",
     "ruleSha256": "c4d96eabcda242bb9e84dd0fc06c38f614046184a4741d769875b22a18174c64",
     "browserVersion": "156.0.8078.80",
-    "cookieCountBefore": 325,
-    "cookieCountAfter": 345,
     "ordinaryCookiesBefore": 180,
     "ordinaryCookiesAfter": 180,
-    "partitionedCookiesBefore": 145,
-    "partitionedCookiesAfter": 165,
-    "note": "Actual extension-native gained H2O (new h2o_casper cookie) and HTTP/2 (also newly detected); none lost. Deployment source SHA matched. The page remains synthetic, not proof either technology is installed."
+    "partitionedCookiesBefore": 165,
+    "partitionedCookiesAfter": 180,
+    "totalCookiesBefore": 345,
+    "totalCookiesAfter": 360,
+    "notes": "True CRX-native +1 Kitcart with new kitcart_session cookie, 0 losses. Top-level live sourceCommit and expectedCommit both matched da5363e8. Browser captured all 360 cookies; no outbound origins added. Keep existing 360-cookie set unchanged."
   },
   "nextHypotheses": [
     {
-      "id": "partitioned-cookie-final-15",
+      "id": "native-dom-js-collection",
       "priority": 1,
-      "status": "untried",
-      "goal": "Test remaining 15 CHIPS candidates (165 -> 180) while preserving first 345 cookies; compare official CRX names."
+      "status": "requires-targeted-diagnostics",
+      "goal": "Explain why approximate DOM/JS observations do not reach native detection, ideally with a concrete CRX collection path and reversible non-CSP weakening change; prior root descendant witness experiment was 0-gain."
     },
     {
-      "id": "native-dom-js-collection",
+      "id": "cookie-selection-cap-360",
       "priority": 2,
-      "status": "needs-new-route-evidence",
-      "goal": "Find actual extension DOM/JS collection differences before further injections; prior html/body additions produced no gain."
+      "status": "capacity-full-avoid-unvalidated-evictions",
+      "goal": "Evaluate a replacement only after identifying a missing cookie-only native rule and proving existing 360 witnesses and their native names are protected; adding beyond 180 CHIPS may evict valid cookies."
     },
     {
       "id": "new-crx-baseline",
       "priority": 3,
       "status": "watch",
-      "goal": "Rebase and compare only when official CRX version/rule SHA changes."
+      "goal": "Re-check official CRX version and SHA, and establish like-for-like baseline before comparing changes."
     }
   ],
   "consecutiveNoGainIndependentHypotheses": 0,
   "mode": "active",
-  "notes": "Latest successful real-CRX measurement 4,226: 2 gained (H2O and HTTP/2), 0 lost, same 6.12.8 SHA. Rooted DOM +2 generated nodes had no gain and was reverted. Cookie experiment adopted; preserve baseline and test only small independent next hypothesis. Never equate this synthetic site with installations.",
+  "notes": "As of 2026-10-31 JST: two incremental native-proven gains from partitioned cookies: 4,224 -> 4,226 (+H2O,+HTTP/2) -> 4,227 (+Kitcart), no lost names. Static Pages only, CSP hashes validated in CI, deployed commit matched for both native scans. No simple unused CHIPS slots remain (180 ordinary + 180 partitioned). Rooted DOM witness experiment produced 2 HTML nodes but no native gain, was reverted and reverified. Continue only with concrete new independent hypotheses; do not assume remaining missed names are statically achievable, and do not confuse supplemental 6,990 with native 4,227.",
   "experimentHistory": [
     {
       "id": "static-header-shards",
@@ -123,18 +122,48 @@
       "outputDomBefore": 2377,
       "outputDomAfter": 2379,
       "notes": "Generated two extra DOM nodes but native Wappalyzer remained at 4,224; reverted to exact original blob; restored native 4,224."
+    },
+    {
+      "id": "partitioned-cookie-20",
+      "hypothesis": "20 unused CHIPS partitioned cookie slots can add native matches without evicting 180 ordinary plus 145 existing partitioned witnesses",
+      "status": "measured-gain-adopted",
+      "before": 4224,
+      "after": 4226,
+      "gained": [
+        "H2O",
+        "HTTP/2"
+      ],
+      "lost": [],
+      "net": 2,
+      "sourceCommitBefore": "91013510a148164b7f6a081d0fad9505be06a940",
+      "experimentCommit": "fae903e55a8bf2eb8cfb8d6d169036877be26ed4",
+      "changedFiles": [
+        "scripts/enrich.mjs"
+      ],
+      "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41113999181",
+      "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41114037745",
+      "crxVersion": "6.12.8",
+      "ruleSha256": "c4d96eabcda242bb9e84dd0fc06c38f614046184a4741d769875b22a18174c64",
+      "browserVersion": "156.0.8078.80",
+      "cookieCountBefore": 325,
+      "cookieCountAfter": 345,
+      "ordinaryCookiesBefore": 180,
+      "ordinaryCookiesAfter": 180,
+      "partitionedCookiesBefore": 145,
+      "partitionedCookiesAfter": 165,
+      "note": "Actual extension-native gained H2O (new h2o_casper cookie) and HTTP/2 (also newly detected); none lost. Deployment source SHA matched. The page remains synthetic, not proof either technology is installed."
     }
   ],
   "latestVerified": {
-    "nativeDetected": 4226,
+    "nativeDetected": 4227,
     "crxDefinitions": 7341,
-    "missing": 3115,
+    "missing": 3114,
     "crxVersion": "6.12.8",
     "ruleSha256": "c4d96eabcda242bb9e84dd0fc06c38f614046184a4741d769875b22a18174c64",
     "browserVersion": "156.0.8078.80",
-    "sourceCommit": "fae903e55a8bf2eb8cfb8d6d169036877be26ed4",
-    "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41113999181",
-    "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41114037745",
+    "sourceCommit": "da5363e88ae228b0d4b2b2867002da68e9e5e6ff",
+    "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41114612253",
+    "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41114644118",
     "deployedShaMatched": true,
     "verified": true
   },
