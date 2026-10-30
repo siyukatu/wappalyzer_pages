@@ -1,7 +1,7 @@
 import { optimizeSharedHeader, augmentBeforeAnchoredSuffix } from './header-optimizer.mjs';
 // Additional static-only fingerprint channels for Cloudflare Pages.
 // Signatures are synthetic and must NEVER be interpreted as installed software.
-const SKIP_HEADERS = new Set([
+export const SKIP_HEADERS = new Set([
   'content-security-policy','content-security-policy-report-only',
   'content-type','content-length','content-encoding','transfer-encoding',
   'cache-control','etag','last-modified','vary','location','date',
@@ -266,25 +266,29 @@ export function generateExtras(all, witness, missingNames = new Set(), urgentNam
       viaHeaderDiagnostics:headers.viaHeaderDiagnostics}
   };
 }
-export function emitHeaders(hash, extras, styleHash) {
+export function emitHeaders(hash, extras, styleHash, shards = []) {
   const csp = [
     "default-src 'none'", "script-src 'sha256-" + hash + "'",
     "script-src-attr 'none'", "style-src 'sha256-" + styleHash + "'", "style-src-attr 'none'", "img-src 'none'",
-    "font-src 'none'", "connect-src 'none'", "frame-src 'none'",
-    "child-src 'none'", "worker-src 'none'", "media-src 'none'",
+    "font-src 'none'", "connect-src 'none'", "frame-src 'self'",
+    "child-src 'self'", "worker-src 'none'", "media-src 'none'",
     "manifest-src 'none'", "object-src 'none'", "form-action 'none'",
-    "base-uri 'none'", "frame-ancestors 'none'"
+    "base-uri 'none'", "frame-ancestors 'self'"
   ].join('; ');
   const lines = [
     '/*',
     '  Content-Security-Policy: ' + csp,
-    '  X-Frame-Options: DENY',
+    '  X-Frame-Options: SAMEORIGIN',
     '  X-Content-Type-Options: nosniff',
     '  Referrer-Policy: no-referrer',
     '  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()',
     '  X-Robots-Tag: noindex, nofollow, noarchive',
     '  Cache-Control: public, max-age=0, must-revalidate',
-    ...extras.headers.lines
+    '/',
+    ...extras.headers.lines,
+    '/index.html',
+    ...extras.headers.lines,
+    ...shards.flatMap(shard => ['/' + shard.path, ...shard.headers])
   ];
   if (lines.some(line=>line.length>2000)) throw new Error('_headers line exceeds Cloudflare Pages limit');
   return lines.join('\n') + '\n';

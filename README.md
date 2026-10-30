@@ -1,8 +1,12 @@
 # Wappalyzer fingerprint Pages
 
-Synthetic fingerprint benchmark: downloads the **latest public Wappalyzer CRX from the Chrome Web Store** and extracts every bundled `technologies/*.json` file **at build time**, then generates one HTML document containing as many passive detection signatures as practical.
+Synthetic fingerprint benchmark: downloads the **latest public Wappalyzer CRX from the Chrome Web Store** and extracts every bundled `technologies/*.json` file **at build time**, then generates static HTML documents containing as many passive detection signatures as practical.
 
 > **Warning:** This is a deliberately misleading fingerprint benchmark, **not** evidence that a listed technology is installed. It will not trigger every Wappalyzer rule: HTTP headers, DNS, cookies, TLS, live network traffic, and difficult regular expressions cannot all be represented faithfully in one HTML file. Actual detector output depends on Wappalyzer version and browser CSP handling.
+
+## Non-negotiable hosting constraints
+
+**Cloudflare Pages static assets only. Cloudflare Pages Functions are strictly prohibited.** Do not add a `functions/` directory, `_worker.js`, a Worker, server-side middleware, a dynamic backend, or any runtime service dependency. Generation and Selenium verification run in GitHub Actions or during the Pages build; the deployed site consists exclusively of static files and `_headers`. No third-party network requests are permitted at runtime.
 
 ## Cloudflare Pages
 
@@ -15,7 +19,7 @@ Synthetic fingerprint benchmark: downloads the **latest public Wappalyzer CRX fr
 
 Every Cloudflare Pages build downloads the official Chrome Web Store CRX for Wappalyzer extension `gppongmhjkpfnbhagpmjfkannfbllamg` through Google's Chrome extension update endpoint, decodes CRX3, and extracts **all 27 bundled `technologies/*.json`** files. On the first verified test, CRX **6.12.8** contained **7,341** technology definitions, compared with **4,005** in the previous public GitHub snapshot. The actual version, SHA-256 and counts are included in `dist/build-info.json` under `ruleSource`. A missing/invalid CRX **fails the build**; the generator never silently falls back to old public JSON definitions. No rules or proprietary extension files are committed or published to Pages. For automatic upstream refresh, configure a Cloudflare Pages deploy hook and call it on a schedule.
 
-The generated `dist/index.html` is a single standalone HTML file. Cloudflare Pages applies `dist/_headers`, whose CSP denies all outbound network requests (`default-src 'none'`, `connect-src 'none'`, etc.) and permits only a hash-verified inline script for synthetic JavaScript globals. Script and stylesheet URLs in the document are intentionally non-functional: CSP blocks them.
+The generated `dist/index.html` remains the top-level synthetic fingerprint page. Cloudflare Pages applies `dist/_headers`, whose CSP denies all outbound network requests (`default-src 'none'`, `connect-src 'none'`, etc.) and permits only a hash-verified inline script for synthetic JavaScript globals. Script and stylesheet URLs in the document are intentionally non-functional: CSP blocks them. A limited number of inert, same-origin static iframe documents under `dist/header-shards/` provide an **experimental** way to test additional mutually incompatible HTTP header values. Only `frame-src 'self'`, `child-src 'self'`, and `frame-ancestors 'self'` are allowed; no third-party frames are allowed.
 
 Run locally: `npm run build` then serve `dist` using a static file server (local file access will not apply the `_headers` CSP).
 
@@ -31,13 +35,13 @@ The source GitHub repository can remain private even though a production Pages s
 - The CSP deliberately prevents all external resources, including synthetic `script src` and `link` URLs. Such URLs may remain detectable as DOM attributes, but will not be loaded.
 - The generated custom HTTP header values are intentionally **false positives** and may not resemble real production software. They should not be used for fingerprint evasion, compliance, or security posture claims.
 
-Cloudflare documents a limit of 100 matching rules and 2,000 characters per header line. This build uses a **single** `/*` rule, with each line kept within the limit. Cloudflare Pages currently limits static file size to 25 MiB. There is no `functions/` or `_worker.js`.
+Cloudflare documents a limit of **100 `_headers` path rules** and **2,000 characters per header line**; this is **not** a limit of 100 HTTP response header fields. The generator uses a wildcard security-header rule, exact `/` and `/index.html` fingerprint rules, and per-shard rules (well below 100). Each line stays within 2,000 characters. The original root header values are retained; additional values are placed on separate same-origin static iframe responses, with no Cloudflare Pages Functions. Cloudflare Pages currently limits static file size to 25 MiB. The build must never create `functions/` or `_worker.js`. **Wappalyzer may ignore iframe response headers**; only the real-extension Selenium result establishes whether this improves detection.
 
 Documentation: https://developers.cloudflare.com/pages/configuration/headers/ and https://developers.cloudflare.com/pages/configuration/serving-pages/
 
 ## Invisible fingerprint page
 
-The generated index uses a SHA-256-authorized inline `<style id="wappalyzer-conceal">` that moves the body offscreen, clips it, and makes it transparent while **preserving text exposure to DOM readers**. It blocks iframe/object/embed rendering. The fingerprint container intentionally does not use the `hidden` attribute, since the extension filters it out even when CSS overrides `display`. The offscreen/transparent body keeps the page visually empty. The CSP `style-src` permits **only the SHA-256 hash** of this exact generated style, without `unsafe-inline`. A fixed nonce would not provide meaningful request-specific security on a static Cloudflare Pages deployment. JavaScript remains governed by a separate hashed `script-src` directive. No Functions are needed.
+The generated index uses a SHA-256-authorized inline `<style id="wappalyzer-conceal">` that moves the body offscreen, clips it, and makes it transparent while **preserving text exposure to DOM readers**. It blocks object/embed rendering and visually hides the intentionally eager-loaded, same-origin header-shard iframes. The fingerprint container intentionally does not use the `hidden` attribute, since the extension filters it out even when CSS overrides `display`. The offscreen/transparent body keeps the page visually empty. The CSP `style-src` permits **only the SHA-256 hash** of this exact generated style, without `unsafe-inline`. A fixed nonce would not provide meaningful request-specific security on a static Cloudflare Pages deployment. JavaScript remains governed by a separate hashed `script-src` directive. No Functions are needed.
 
 ## Compact global fingerprint synthesis
 
@@ -85,7 +89,7 @@ The [second-scan assessment](docs/second-scan.md) describes the measured 458 gai
 - The exact Wappalyzer detector module is extracted from the **same Chrome Web Store CRX** as the technology JSON, without HTTPArchive fallback. Chrome for Testing launches the **actual extension** with its content/background scripts, and its native background driver returns the canonical detection result. The separate browser-signal analyzer is retained only as supplemental diagnostic data. The workflow posts a summary with detected count, missing technologies and per-channel gaps, and uploads `selenium-selfcheck` with the JSON report and raw capture.
 - The workflow reads the **previous successful Selenium report** from Actions artifacts and records automatic Selenium-to-Selenium gains/losses. The original 3,361-detection manual CSV remains only a historical comparison. Subsequent gains/losses are measured **native-to-native**.
 - The diagnostic fetches `/build-info.json` from the same site and reports deployed source commit and CRX version, so a Pages deployment lag or a different rule snapshot is visible.
-- The public Pages site remains Functions-free and single-line; Selenium and the rule analyzer run in GitHub Actions only.
+- The public Pages site remains Functions-free; every generated HTML document is single-line. Selenium and the rule analyzer run in GitHub Actions only. The Selenium capture also checks that all header-shard iframe responses return HTTP 200 and selects the real top-level response rather than accidentally selecting a child-frame response.
 
 ## Assistant-led improvement cycles
 

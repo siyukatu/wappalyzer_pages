@@ -156,7 +156,25 @@ def main():
                    urlparse(e['params']['response'].get('url','')).hostname==parsed.hostname]
         if not documents:
             raise RuntimeError('Selenium/CDP did not observe the live document response')
-        main_doc=documents[-1]
+        # iframe Document responses are also present. Never mistake the last
+        # loaded child frame for the top-level document and its CSP/headers.
+        root_docs=[e for e in documents if urlparse(e['params']['response'].get('url','')).path==parsed.path]
+        if not root_docs:
+            raise RuntimeError('Selenium/CDP did not observe the top-level Pages response')
+        main_doc=root_docs[-1]
+        shard_paths=driver.execute_script("return Array.from(document.querySelectorAll('iframe[data-wappalyzer-header-shard]'), f => new URL(f.src).pathname)")
+        shard_loaded=driver.execute_script("return Array.from(document.querySelectorAll('iframe[data-wappalyzer-header-shard]')).filter(f => f.contentDocument && f.contentDocument.readyState === 'complete').length")
+        shard_responses=[]
+        for event in documents:
+            resp=event['params']['response']
+            path=urlparse(resp.get('url','')).path
+            if path in shard_paths:
+                shard_responses.append({'path':path,'status':int(resp.get('status',0)),
+                    'headerFields':len(resp.get('headers',{}))})
+        if len(shard_paths)!=len(set(shard_paths)) or shard_loaded!=len(shard_paths):
+            raise RuntimeError('Not all same-origin header shard iframes loaded')
+        if any(not any(x['path']==path and x['status']==200 for x in shard_responses) for path in shard_paths):
+            raise RuntimeError('Selenium/CDP did not observe all static header shard HTTP 200 responses')
         response=main_doc['params']['response']
         code=int(response.get('status',0))
         if code !=200:
@@ -212,6 +230,9 @@ def main():
         page['diagnostics'].update({
             'httpStatus':code,
             'responseHeaders':len(header_map),
+            'headerShardFrames':len(shard_paths),
+            'headerShardFramesLoaded':shard_loaded,
+            'headerShardResponses':shard_responses,
             'cookieCount':len(cookies),
             'rawHtmlCapturedByCDP':cdp_raw,
             'htmlLength':len(html),
