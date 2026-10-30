@@ -91,6 +91,16 @@ The [second-scan assessment](docs/second-scan.md) describes the measured 458 gai
 - The diagnostic fetches `/build-info.json` from the same site and reports deployed source commit and CRX version, so a Pages deployment lag or a different rule snapshot is visible.
 - The public Pages site remains Functions-free; every generated HTML document is single-line. Selenium and the rule analyzer run in GitHub Actions only. The Selenium capture also checks that all header-shard iframe responses return HTTP 200 and selects the real top-level response rather than accidentally selecting a child-frame response.
 
+## Measured static iframe header-sharding experiment (2026-10-31 JST)
+
+- Baseline actual native Wappalyzer Chrome extension: **4,224 / 7,341** definitions.
+- Measured after this implementation: **4,224 / 7,341** definitions, **0 new** and **0 lost** technology names.
+- In GitHub Actions Selenium, **all three** same-origin `/header-shards/01`, `/02`, `/03` iframes completed loading and each returned HTTP **200**, with its own response headers.
+- **Conclusion:** Rendering the static iframe pages is feasible without Functions, but their additional response headers **did not increase the top-level Wappalyzer native detection count in this test**. Do not assume iframe response headers are aggregated into the parent tab's results.
+- Cloudflare Pages serves `header-shards/01.html` at its canonical extensionless URL `/header-shards/01`; the iframe sources and `_headers` path selectors must match that URL.
+- Experiment run: https://github.com/siyukatu/wappalyzer_pages/actions/runs/41084074060 ; source commit: `49be80a6082e1228a8b175b62efd1561d828d187`.
+- The experiment is preserved as a non-regressing, static-only benchmark. Improvements must be evaluated with **native-to-native** counts; generated-rule estimates and the supplemental approximate analyzer do not establish detection gains.
+
 ## Assistant-led improvement cycles
 
 The improvement / Push / Cloudflare deployment verification / native-extension scan / next-improvement cycle is initiated and reviewed **by the assistant during an active conversation**, not by an unattended GitHub cron job. The GitHub Actions workflows provide build and Selenium measurements after each Push, and may be started manually. Continuous activity beyond the conversation is not implied.
