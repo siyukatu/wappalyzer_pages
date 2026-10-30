@@ -288,7 +288,7 @@ export function emitHeaders(hash, extras, styleHash, shards = []) {
     ...extras.headers.lines,
     '/index.html',
     ...extras.headers.lines,
-    ...shards.flatMap(shard => ['/' + shard.path, ...shard.headers])
+    ...shards.flatMap(shard => ['/' + shard.path.replace(/\.html$/, ''), ...shard.headers])
   ];
   if (lines.some(line=>line.length>2000)) throw new Error('_headers line exceeds Cloudflare Pages limit');
   return lines.join('\n') + '\n';

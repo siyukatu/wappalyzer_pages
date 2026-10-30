@@ -106,7 +106,7 @@ const html = '<!doctype html>\n<html lang="en"'+root.html+'><head><meta charset=
   extras.body + '\n' +
   [...dom].join('\n') + '\n<div>' + [...text].map(escape).join(' ') + '</div>\n' +
   '</div>\n' +
-  headerShards.shards.map(shard => '<iframe data-wappalyzer-header-shard="" src="/'+shard.path+'" title="Synthetic header fingerprint shard" loading="eager" referrerpolicy="no-referrer" tabindex="-1" aria-hidden="true"></iframe>').join('') +
+  headerShards.shards.map(shard => '<iframe data-wappalyzer-header-shard="" src="/'+shard.path.replace(/\.html$/, '')+'" title="Synthetic header fingerprint shard" loading="eager" referrerpolicy="no-referrer" tabindex="-1" aria-hidden="true"></iframe>').join('') +
   '</body></html>\n';
 // All dynamic content is emitted at build time; no Cloudflare Functions.
 await mkdir(OUT, { recursive: true });

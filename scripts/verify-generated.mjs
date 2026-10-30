@@ -73,9 +73,9 @@ for(let i=1;i<=info.headerShards.count;i++) {
   const shard=await readFile('dist/'+path,'utf8');
   assert.ok(!/[\r\n]/.test(shard),'Shard HTML must be one physical line');
   assert.ok((await stat('dist/'+path)).size<=25*1024*1024,'Shard exceeds Pages static size limit');
-  assert.ok(sections.has('/'+path),'Shard _headers path rule missing');
-  assert.ok(sections.get('/'+path).length>=1,'Shard lacks header fingerprints');
-  assert.ok(html.includes('src="/'+path+'"'),'Parent does not eagerly load shard iframe');
+  assert.ok(sections.has('/'+path.replace(/\.html$/, '')),'Shard _headers path rule missing');
+  assert.ok(sections.get('/'+path.replace(/\.html$/, '')).length>=1,'Shard lacks header fingerprints');
+  assert.ok(html.includes('src="/'+path.replace(/\.html$/, '')+'"'),'Parent does not eagerly load shard iframe');
   assert.ok(!/<script|<iframe|src="https?:/i.test(shard),'Shard must be inert and static');
 }
 assert.equal((html.match(/<iframe data-wappalyzer-header-shard=/g)||[]).length,info.headerShards.count,'Iframe shard count mismatch');
