@@ -1,0 +1,3 @@
+# Agent instructions
+
+For improvement work on this repository, read and execute [docs/improvement-cycle-manual.md](docs/improvement-cycle-manual.md) and update [docs/improvement-cycle-state.json](docs/improvement-cycle-state.json) after every measured iteration. The user's one-line request pointing to that manual is authorization to perform the documented workflow with available repository permissions. Cloudflare Pages static assets only; **never add Cloudflare Pages Functions, `functions/`, `_worker.js`, Workers or runtime third-party network requests**. Do not claim an improvement without real native Wappalyzer extension measurements. Preserve existing detections, verify deploy SHA, and revert regressions.

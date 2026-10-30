@@ -101,6 +101,10 @@ The [second-scan assessment](docs/second-scan.md) describes the measured 458 gai
 - Experiment run: https://github.com/siyukatu/wappalyzer_pages/actions/runs/41084074060 ; source commit: `49be80a6082e1228a8b175b62efd1561d828d187`.
 - The experiment is preserved as a non-regressing, static-only benchmark. Improvements must be evaluated with **native-to-native** counts; generated-rule estimates and the supplemental approximate analyzer do not establish detection gains.
 
+## Reusable improvement-cycle runbook
+
+Read [the improvement-cycle manual](docs/improvement-cycle-manual.md) and [the checkpoint state](docs/improvement-cycle-state.json) to resume work in a new conversation. The manual contains the one-line invocation, required tests, native-extension regression gate, known failed experiments, and restart/stop conditions. See [AGENTS.md](AGENTS.md) for coding agents.
+
 ## Assistant-led improvement cycles
 
 The improvement / Push / Cloudflare deployment verification / native-extension scan / next-improvement cycle is initiated and reviewed **by the assistant during an active conversation**, not by an unattended GitHub cron job. The GitHub Actions workflows provide build and Selenium measurements after each Push, and may be started manually. Continuous activity beyond the conversation is not implied.

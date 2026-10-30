@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "repository": "siyukatu/wappalyzer_pages",
+  "manual": "docs/improvement-cycle-manual.md",
+  "baseline": {
+    "nativeDetected": 4224,
+    "crxDefinitions": 7341,
+    "crxVersion": "6.12.8",
+    "missing": 3117,
+    "runUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41084074060",
+    "sourceCommit": "49be80a6082e1228a8b175b62efd1561d828d187",
+    "verified": true
+  },
+  "lastExperiment": {
+    "id": "static-header-shards",
+    "hypothesis": "Same-origin iframe response headers improve parent-tab native detections",
+    "status": "measured-no-gain",
+    "before": 4224,
+    "after": 4224,
+    "gained": [],
+    "lost": [],
+    "runUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41084074060",
+    "notes": "Three iframe responses returned 200; native count unchanged."
+  },
+  "nextHypotheses": [
+    {
+      "id": "root-header-optimizer",
+      "priority": 1,
+      "status": "untried",
+      "goal": "Improve root X-Powered-By and Via matches without losing native detections"
+    },
+    {
+      "id": "native-dom-js-gap",
+      "priority": 2,
+      "status": "untried",
+      "goal": "Find unobserved native DOM and JS detection channels"
+    },
+    {
+      "id": "cookie-witness-targeting",
+      "priority": 3,
+      "status": "untried",
+      "goal": "Improve cookie witness selection while preserving native detections"
+    }
+  ],
+  "consecutiveNoGainIndependentHypotheses": 1,
+  "mode": "active",
+  "notes": "All measurements require a new CRX/Pages commit match. This state is a handoff, not proof of a global optimum."
+}
