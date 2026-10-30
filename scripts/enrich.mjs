@@ -45,7 +45,7 @@ function selectorMarkup(raw) {
   }
   if (/[>:~+]/.test(s) || /\s(?![^\[]*\])/.test(s)) return null;
   const tag = s.match(/^[a-z][a-z0-9-]*/i)?.[0] || 'div';
-  if (['html','body','head','meta','title','base'].includes(tag.toLowerCase())) return null;
+  if (['html','body','head','title','base'].includes(tag.toLowerCase())) return null;
   const ids = [...s.matchAll(/#([a-z_][\w-]*)/ig)].map(m=>m[1]);
   const classes = [...s.matchAll(/\.([a-z_][\w-]*)/ig)].map(m=>m[1]);
   const attrs = [];
@@ -58,6 +58,7 @@ function selectorMarkup(raw) {
     if (!plain(value)) continue;
     attrs.push([m[1], m[2] === '$=' ? 'fp-' + value : m[2] === '^=' ? value + '-fp' : value]);
   }
+  if (tag.toLowerCase()==='meta' && (!attrs.length || attrs.some(([key])=>!['name','property','itemprop','content'].includes(key.toLowerCase())))) return null;
   if (ids.length) attrs.push(['id',ids[0]]);
   if (classes.length) attrs.push(['class',classes.join(' ')]);
   const as = attrs.slice(0,8).map(([k,v]) => ' ' + k + '="' + escaped(v) + '"').join('');
@@ -145,7 +146,7 @@ function selectHeaders(all, witness, missingNames = new Set(), urgentNames = new
   return {lines, count:lines.length, approxMatches:score, bytes:total, sharedHeaderDiagnostics, viaHeaderDiagnostics};
 }
 export function generateExtras(all, witness, missingNames = new Set(), urgentNames = new Set(), preserveNames = new Set()) {
-  const dom = new Set(), comments = new Set(), cookieValues = new Map(), js = new Map(), domProperties = new Map();
+  const dom = new Set(), headDom = new Set(), comments = new Set(), cookieValues = new Map(), js = new Map(), domProperties = new Map();
   let domRuleCount = 0, cookieRuleCount=0;
   for (const [techName, tech] of Object.entries(all)) {
     const dr = tech?.dom;
@@ -171,7 +172,7 @@ export function generateExtras(all, witness, missingNames = new Set(), urgentNam
       }
       for (const piece of String(sel).split(/,(?![^\[]*\])/)) {
         const markup = selectorMarkup(piece);
-        if (markup) dom.add(markup);
+        if (markup) (markup.startsWith('<meta ') ? headDom : dom).add(markup);
         // Object-form DOM rules frequently impose a regex on attribute
         // contents, beyond the selector itself. Add a separate valid witness
         // element, leaving the selector-derived element in place as a fallback.
@@ -195,7 +196,7 @@ export function generateExtras(all, witness, missingNames = new Set(), urgentNam
             enhanced=enhanced.replace(existing[0],' '+attr+'="'+escaped(valid)+'"');
           }else enhanced=enhanced.replace(/(\/?>)$/,' '+attr+'="'+escaped(val)+'"$1');
         }
-        if(enhanced!==markup)dom.add(enhanced);
+        if(enhanced!==markup) (enhanced.startsWith('<meta ') ? headDom : dom).add(enhanced);
         for (const rule of values(detail.text)) {
           const content = rule === '' ? '' : witness(rule);
           if(content === null || content.length>200 || /[\r\n]/.test(content)) continue;
@@ -261,8 +262,8 @@ export function generateExtras(all, witness, missingNames = new Set(), urgentNam
   const body = [...dom].join('') + [...comments].join('');
   return {
     bootstrap: cookieScript + propertyScript,
-    body, headers,
-    stats: {additionalDom:dom.size, htmlComments:comments.size, syntheticDomProperties:domProperties.size, cookies:cookieList.length, partitionedCookies:partitionedList.length, cookieOnlyChosen, nativePreservedChosen, upstreamDomSelectors:domRuleCount, upstreamCookieRules:cookieRuleCount,
+    body, head: [...headDom].join(''), headers,
+    stats: {additionalDom:dom.size, headMetaDom:headDom.size, htmlComments:comments.size, syntheticDomProperties:domProperties.size, cookies:cookieList.length, partitionedCookies:partitionedList.length, cookieOnlyChosen, nativePreservedChosen, upstreamDomSelectors:domRuleCount, upstreamCookieRules:cookieRuleCount,
       syntheticHeaderFields: headers.count, syntheticHeaderMatches:headers.approxMatches, syntheticHeaderBytes: headers.bytes,
       sharedHeaderDiagnostics:headers.sharedHeaderDiagnostics,
       viaHeaderDiagnostics:headers.viaHeaderDiagnostics}
