@@ -12,55 +12,46 @@
     "verified": true
   },
   "lastExperiment": {
-    "id": "partitioned-cookie-final-15",
-    "hypothesis": "Use remaining 15 CHIPS witness slots while retaining all previous 180 regular and 165 partitioned cookies.",
-    "status": "measured-gain-adopted",
-    "before": 4226,
+    "id": "safe-head-meta-dom",
+    "hypothesis": "Place eight previously skipped safe meta DOM selector witnesses in actual document head.",
+    "status": "measured-no-gain-reverted",
+    "before": 4227,
     "after": 4227,
-    "net": 1,
-    "gained": [
-      "Kitcart"
-    ],
+    "gained": [],
     "lost": [],
-    "experimentCommit": "da5363e88ae228b0d4b2b2867002da68e9e5e6ff",
-    "priorCommit": "fae903e55a8bf2eb8cfb8d6d169036877be26ed4",
-    "changedFiles": [
-      "scripts/enrich.mjs"
+    "net": 0,
+    "experimentCommit": "4af5c866214ac4b689d062bd5e5a7e81bbe31790",
+    "revertCommits": [
+      "31c6846a4588eb889119db5b916a21be328b487e",
+      "d1e318f0f7b725f886b09bcee868cc65cd557f01"
     ],
-    "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41114612253",
-    "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41114644118",
-    "crxVersion": "6.12.8",
-    "ruleSha256": "c4d96eabcda242bb9e84dd0fc06c38f614046184a4741d769875b22a18174c64",
-    "browserVersion": "156.0.8078.80",
-    "ordinaryCookiesBefore": 180,
-    "ordinaryCookiesAfter": 180,
-    "partitionedCookiesBefore": 165,
-    "partitionedCookiesAfter": 180,
-    "totalCookiesBefore": 345,
-    "totalCookiesAfter": 360,
-    "notes": "True CRX-native +1 Kitcart with new kitcart_session cookie, 0 losses. Top-level live sourceCommit and expectedCommit both matched da5363e8. Browser captured all 360 cookies; no outbound origins added. Keep existing 360-cookie set unchanged."
+    "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41116649151",
+    "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41116677346",
+    "revertBuildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41117169061",
+    "revertNativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41117199724",
+    "notes": "Eight new safe head meta signatures; root native 4,227 both before and after; normal code blobs restored and reverified."
   },
   "nextHypotheses": [
     {
-      "id": "native-dom-js-collection",
+      "id": "head-only-passive-dom-links",
       "priority": 1,
-      "status": "requires-targeted-diagnostics",
-      "goal": "Explain why approximate DOM/JS observations do not reach native detection, ideally with a concrete CRX collection path and reversible non-CSP weakening change; prior root descendant witness experiment was 0-gain."
+      "status": "untried",
+      "goal": "Duplicate rel-less DOM link selector witnesses into head with no new outbound requests and compare genuine native CRX."
     },
     {
-      "id": "cookie-selection-cap-360",
+      "id": "js-dom-collection-root-cause",
       "priority": 2,
-      "status": "capacity-full-avoid-unvalidated-evictions",
-      "goal": "Evaluate a replacement only after identifying a missing cookie-only native rule and proving existing 360 witnesses and their native names are protected; adding beyond 180 CHIPS may evict valid cookies."
+      "status": "untried",
+      "goal": "Use exact CRX rules/engine to distinguish impossible inherited or excluded signals from truly reachable ones before changing CSP."
     },
     {
       "id": "new-crx-baseline",
       "priority": 3,
       "status": "watch",
-      "goal": "Re-check official CRX version and SHA, and establish like-for-like baseline before comparing changes."
+      "goal": "Rebuild like-for-like baseline on CRX/engine SHA change."
     }
   ],
-  "consecutiveNoGainIndependentHypotheses": 0,
+  "consecutiveNoGainIndependentHypotheses": 1,
   "mode": "active",
   "notes": "As of 2026-10-31 JST: two incremental native-proven gains from partitioned cookies: 4,224 -> 4,226 (+H2O,+HTTP/2) -> 4,227 (+Kitcart), no lost names. Static Pages only, CSP hashes validated in CI, deployed commit matched for both native scans. No simple unused CHIPS slots remain (180 ordinary + 180 partitioned). Rooted DOM witness experiment produced 2 HTML nodes but no native gain, was reverted and reverified. Continue only with concrete new independent hypotheses; do not assume remaining missed names are statically achievable, and do not confuse supplemental 6,990 with native 4,227.",
   "experimentHistory": [
@@ -152,6 +143,55 @@
       "partitionedCookiesBefore": 145,
       "partitionedCookiesAfter": 165,
       "note": "Actual extension-native gained H2O (new h2o_casper cookie) and HTTP/2 (also newly detected); none lost. Deployment source SHA matched. The page remains synthetic, not proof either technology is installed."
+    },
+    {
+      "id": "partitioned-cookie-final-15",
+      "hypothesis": "Use remaining 15 CHIPS witness slots while retaining all previous 180 regular and 165 partitioned cookies.",
+      "status": "measured-gain-adopted",
+      "before": 4226,
+      "after": 4227,
+      "net": 1,
+      "gained": [
+        "Kitcart"
+      ],
+      "lost": [],
+      "experimentCommit": "da5363e88ae228b0d4b2b2867002da68e9e5e6ff",
+      "priorCommit": "fae903e55a8bf2eb8cfb8d6d169036877be26ed4",
+      "changedFiles": [
+        "scripts/enrich.mjs"
+      ],
+      "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41114612253",
+      "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41114644118",
+      "crxVersion": "6.12.8",
+      "ruleSha256": "c4d96eabcda242bb9e84dd0fc06c38f614046184a4741d769875b22a18174c64",
+      "browserVersion": "156.0.8078.80",
+      "ordinaryCookiesBefore": 180,
+      "ordinaryCookiesAfter": 180,
+      "partitionedCookiesBefore": 165,
+      "partitionedCookiesAfter": 180,
+      "totalCookiesBefore": 345,
+      "totalCookiesAfter": 360,
+      "notes": "True CRX-native +1 Kitcart with new kitcart_session cookie, 0 losses. Top-level live sourceCommit and expectedCommit both matched da5363e8. Browser captured all 360 cookies; no outbound origins added. Keep existing 360-cookie set unchanged."
+    },
+    {
+      "id": "safe-head-meta-dom",
+      "hypothesis": "Place eight previously skipped safe meta DOM selector witnesses in actual document head.",
+      "status": "measured-no-gain-reverted",
+      "before": 4227,
+      "after": 4227,
+      "gained": [],
+      "lost": [],
+      "net": 0,
+      "experimentCommit": "4af5c866214ac4b689d062bd5e5a7e81bbe31790",
+      "revertCommits": [
+        "31c6846a4588eb889119db5b916a21be328b487e",
+        "d1e318f0f7b725f886b09bcee868cc65cd557f01"
+      ],
+      "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41116649151",
+      "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41116677346",
+      "revertBuildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41117169061",
+      "revertNativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41117199724",
+      "notes": "Eight new safe head meta signatures; root native 4,227 both before and after; normal code blobs restored and reverified."
     }
   ],
   "latestVerified": {
@@ -161,9 +201,9 @@
     "crxVersion": "6.12.8",
     "ruleSha256": "c4d96eabcda242bb9e84dd0fc06c38f614046184a4741d769875b22a18174c64",
     "browserVersion": "156.0.8078.80",
-    "sourceCommit": "da5363e88ae228b0d4b2b2867002da68e9e5e6ff",
-    "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41114612253",
-    "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41114644118",
+    "sourceCommit": "d1e318f0f7b725f886b09bcee868cc65cd557f01",
+    "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41117169061",
+    "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41117199724",
     "deployedShaMatched": true,
     "verified": true
   },
