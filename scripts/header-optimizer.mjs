@@ -66,6 +66,30 @@ export function optimizeSharedHeader(rules,current) {
     const match=coverage(value);
     if(match.technologies>bestScore.technologies) {best=value;bestScore=match;}
   }
+  // Try extending the selected header without displacing any of its matches.
+  // Unlike the first pass, this starts from the previously selected result,
+  // so extra witnesses cannot replace previously matched technology names.
+  const protectedNames = new Set(bestScore.names);
+  const appendable = [...new Set(compiled.filter(x=>!x.start&&!x.end).map(x=>x.value))]
+    .filter(v=>v && !best.includes(v))
+    .sort((a,b)=>a.length-b.length || a.localeCompare(b));
+  for(let round=0;round<35;round++) {
+    let next=null;
+    for(const value of appendable) {
+      if(best.includes(value))continue;
+      const trial=best ? best+', '+value : value;
+      if(trial.length>MAX_VALUE)continue;
+      const matches=coverage(trial);
+      if(matches.technologies<=bestScore.technologies)continue;
+      if([...protectedNames].some(name=>!matches.names.includes(name)))continue;
+      if(!next || matches.technologies>next.matches.technologies ||
+        (matches.technologies===next.matches.technologies && trial.length<next.value.length))
+        next={value:trial,matches};
+    }
+    if(!next)break;
+    best=next.value;
+    bestScore=next.matches;
+  }
   return {value:best,baseline:before.technologies,matched:bestScore.technologies,
     names:bestScore.names};
 }
