@@ -2,6 +2,10 @@ name: Verify generated fingerprint page
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - 'README.md'
+      - 'AGENTS.md'
   workflow_dispatch:
 jobs:
   build:
