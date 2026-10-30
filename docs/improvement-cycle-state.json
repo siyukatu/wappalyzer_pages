@@ -12,37 +12,91 @@
     "verified": true
   },
   "lastExperiment": {
-    "id": "static-header-shards",
-    "hypothesis": "Same-origin iframe response headers improve parent-tab native detections",
-    "status": "measured-no-gain",
+    "id": "root-header-preserving-append",
+    "hypothesis": "A monotone post-pass on the root X-Powered-By witness pool can add native Wappalyzer detections while preserving existing regex-matched names",
+    "status": "measured-no-gain-reverted",
     "before": 4224,
     "after": 4224,
     "gained": [],
     "lost": [],
-    "runUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41084074060",
-    "notes": "Three iframe responses returned 200; native count unchanged."
+    "net": 0,
+    "sourceCommitBefore": "1c8dd1e0fb316ce0f3af7d134590f17039e39205",
+    "experimentCommit": "09d97be54d4103b73c95239a5f4953bc7af47ceb",
+    "revertCommit": "01f15154ca9078dead65592857c7866da161834d",
+    "changedFiles": [
+      "scripts/header-optimizer.mjs"
+    ],
+    "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41089014598",
+    "experimentNativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41089049001",
+    "revertBuildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41089636879",
+    "revertNativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41089678454",
+    "crxVersion": "6.12.8",
+    "ruleSha256": "c4d96eabcda242bb9e84dd0fc06c38f614046184a4741d769875b22a18174c64",
+    "browserVersion": "156.0.8078.80",
+    "generatedHeaderDiff": "none",
+    "rootXPoweredByRuleMatchesBefore": 87,
+    "rootXPoweredByRuleMatchesAfter": 87,
+    "validation": "Node.js 22 build and verify-generated succeeded in CI on both experiment and revert; deployed source SHA matched in both native reports; native result from real unpacked Chrome Web Store CRX; local npm build not run because local outbound network resolution was unavailable",
+    "notes": "No change to generated _headers; native 4,224 -> 4,224, gained 0, lost 0. Reverted to identical original blob 22bcada8dc7f630160d1bf18a5ce7eaf7214e258."
   },
   "nextHypotheses": [
     {
-      "id": "root-header-optimizer",
+      "id": "native-dom-js-gap",
       "priority": 1,
       "status": "untried",
-      "goal": "Improve root X-Powered-By and Via matches without losing native detections"
-    },
-    {
-      "id": "native-dom-js-gap",
-      "priority": 2,
-      "status": "untried",
-      "goal": "Find unobserved native DOM and JS detection channels"
+      "goal": "Correlate native CRX DOM/JS collection paths with 1,482 approximate-only js and 867 approximate-only dom signals; do not weaken CSP or equate approximate matches with native detections."
     },
     {
       "id": "cookie-witness-targeting",
-      "priority": 3,
+      "priority": 2,
       "status": "untried",
-      "goal": "Improve cookie witness selection while preserving native detections"
+      "goal": "Try a small native-cookie-only witness improvement with prior native gains protected, and measure native gained/lost."
+    },
+    {
+      "id": "root-header-optimizer",
+      "priority": 3,
+      "status": "tested-no-gain",
+      "goal": "Revisit only with a demonstrably different, protected root-header candidate; monotone append output was identical."
+    },
+    {
+      "id": "new-crx-baseline",
+      "priority": 4,
+      "status": "watch",
+      "goal": "On a new official CRX, rebuild a new like-for-like native baseline before comparing counts."
     }
   ],
-  "consecutiveNoGainIndependentHypotheses": 1,
+  "consecutiveNoGainIndependentHypotheses": 2,
   "mode": "active",
-  "notes": "All measurements require a new CRX/Pages commit match. This state is a handoff, not proof of a global optimum."
+  "notes": "Two independent measured no-gain hypotheses: same-origin iframe header shards and the root X-Powered-By monotone append. No regression or measured native gain. Restored site matches pre-experiment generator. Subsequent code changes require new native CRX/Pages SHA match and gained/lost comparison; no mathematical optimum is asserted.",
+  "experimentHistory": [
+    {
+      "id": "static-header-shards",
+      "hypothesis": "Same-origin iframe response headers improve parent-tab native detections",
+      "status": "measured-no-gain",
+      "before": 4224,
+      "after": 4224,
+      "gained": [],
+      "lost": [],
+      "runUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41084074060",
+      "notes": "Three iframe responses returned 200; native count unchanged."
+    }
+  ],
+  "latestVerified": {
+    "nativeDetected": 4224,
+    "crxDefinitions": 7341,
+    "missing": 3117,
+    "crxVersion": "6.12.8",
+    "ruleSha256": "c4d96eabcda242bb9e84dd0fc06c38f614046184a4741d769875b22a18174c64",
+    "browserVersion": "156.0.8078.80",
+    "sourceCommit": "01f15154ca9078dead65592857c7866da161834d",
+    "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41089636879",
+    "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41089678454",
+    "deployedShaMatched": true,
+    "verified": true
+  },
+  "latestFailedNonMeasurement": {
+    "sourceCommit": "1c8dd1e0fb316ce0f3af7d134590f17039e39205",
+    "runUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41087616351",
+    "reason": "Documentation/workflow-only revision not deployed: expected 1c8dd1e0..., live still 7535f7fb...; not a detection regression"
+  }
 }
