@@ -12,48 +12,59 @@
     "verified": true
   },
   "lastExperiment": {
-    "id": "safe-head-meta-dom",
-    "hypothesis": "Place eight previously skipped safe meta DOM selector witnesses in actual document head.",
+    "id": "passive-head-link-dom",
+    "hypothesis": "Duplicating 240 rel-less DOM link witness elements into document head, while preserving body witnesses, could make head-only collector conditions reachable without external requests.",
     "status": "measured-no-gain-reverted",
     "before": 4227,
     "after": 4227,
     "gained": [],
     "lost": [],
     "net": 0,
-    "experimentCommit": "4af5c866214ac4b689d062bd5e5a7e81bbe31790",
-    "revertCommits": [
-      "31c6846a4588eb889119db5b916a21be328b487e",
-      "d1e318f0f7b725f886b09bcee868cc65cd557f01"
+    "sourceCommitBefore": "365935c247901fb8ac1a3741f5143aeac035af4e",
+    "experimentCommits": [
+      "1a35c162b4b0c5935bcb63b4ff162324616e8490",
+      "71ccf7794c87724db553f8857b1d81ecae21056b"
     ],
-    "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41116649151",
-    "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41116677346",
-    "revertBuildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41117169061",
-    "revertNativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41117199724",
-    "notes": "Eight new safe head meta signatures; root native 4,227 both before and after; normal code blobs restored and reverified."
+    "experimentCommit": "71ccf7794c87724db553f8857b1d81ecae21056b",
+    "revertCommit": "4175e2fdfa559aa7aa26147892601fbbb49759d9",
+    "changedFiles": [
+      "scripts/build.mjs"
+    ],
+    "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41117885930",
+    "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41117926555",
+    "revertBuildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41118386191",
+    "revertNativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41118413326",
+    "crxVersion": "6.12.8",
+    "ruleSha256": "c4d96eabcda242bb9e84dd0fc06c38f614046184a4741d769875b22a18174c64",
+    "browserVersion": "156.0.8078.80",
+    "addedHeadLinkWitnesses": 240,
+    "headLinkDomMatchesBefore": 2042,
+    "headLinkDomMatchesAfter": 2078,
+    "notes": "HEAD received 240 rel-less link DOM candidate copies, no extra third-party responses, unchanged headers/CSP. Official CRX-native count 4227->4227, gained/lost empty. Reverted scripts/build.mjs to exact preexperiment SHA 6d36b9f2376652c8bfa607d27b15edb05d0da474, reverified native 4227 with deployed SHA match. Earlier malformed regex intermediate commit was superseded by corrected experiment and must not be treated as an independent hypothesis."
   },
   "nextHypotheses": [
     {
-      "id": "head-only-passive-dom-links",
+      "id": "investigate-native-js-dom-path",
       "priority": 1,
-      "status": "untried",
-      "goal": "Duplicate rel-less DOM link selector witnesses into head with no new outbound requests and compare genuine native CRX."
+      "status": "requires-focused-analysis",
+      "goal": "Before another edit, correlate native CRX content.js/js.js/dom.js execution and resolve/requires/excludes with approximation-only JS 1,482 and DOM 866 (overlap). Current getDom performance passes 50 and Browser JS 5,623 paths are diagnostic, not proof of native receipt. Identify exactly which safe page-visible proof is missing; do not weaken CSP."
     },
     {
-      "id": "js-dom-collection-root-cause",
+      "id": "cookie-protected-target-swap",
       "priority": 2,
-      "status": "untried",
-      "goal": "Use exact CRX rules/engine to distinguish impossible inherited or excluded signals from truly reachable ones before changing CSP."
+      "status": "only-with-specific-proof",
+      "goal": "All 360 browser cookie slots are used; explore only if specific missing cookie-only technology can replace a demonstrably ineffective witness while preserving 4,227 previously native-detected names."
     },
     {
       "id": "new-crx-baseline",
       "priority": 3,
       "status": "watch",
-      "goal": "Rebuild like-for-like baseline on CRX/engine SHA change."
+      "goal": "On new official CRX version/SHA, construct fresh native baseline rather than compare counts across rule sets."
     }
   ],
-  "consecutiveNoGainIndependentHypotheses": 1,
+  "consecutiveNoGainIndependentHypotheses": 2,
   "mode": "active",
-  "notes": "As of 2026-10-31 JST: two incremental native-proven gains from partitioned cookies: 4,224 -> 4,226 (+H2O,+HTTP/2) -> 4,227 (+Kitcart), no lost names. Static Pages only, CSP hashes validated in CI, deployed commit matched for both native scans. No simple unused CHIPS slots remain (180 ordinary + 180 partitioned). Rooted DOM witness experiment produced 2 HTML nodes but no native gain, was reverted and reverified. Continue only with concrete new independent hypotheses; do not assume remaining missed names are statically achievable, and do not confuse supplemental 6,990 with native 4,227.",
+  "notes": "2026-10-31 JST: native remained 4227 after two distinct, measured, safe no-gain experiments: +8 head DOM meta nodes and +240 passive head DOM link nodes. Each experiment was reverted and the restored production code was again measured at 4227 with 0 losses, matching Chrome 156.0.8078.80 and Web Store CRX 6.12.8 SHA. After two attempts, no third concrete independent edit with compelling native collection evidence was established during this active turn. This does not prove a maximum. Session-only execution was requested; ChatGPT scheduling is disabled. Continue only when another active conversation turn has tools/authorization; do not assert background/infinite continuation.",
   "experimentHistory": [
     {
       "id": "static-header-shards",
@@ -201,9 +212,9 @@
     "crxVersion": "6.12.8",
     "ruleSha256": "c4d96eabcda242bb9e84dd0fc06c38f614046184a4741d769875b22a18174c64",
     "browserVersion": "156.0.8078.80",
-    "sourceCommit": "d1e318f0f7b725f886b09bcee868cc65cd557f01",
-    "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41117169061",
-    "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41117199724",
+    "sourceCommit": "4175e2fdfa559aa7aa26147892601fbbb49759d9",
+    "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41118386191",
+    "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41118413326",
     "deployedShaMatched": true,
     "verified": true
   },
