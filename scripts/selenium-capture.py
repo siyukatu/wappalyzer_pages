@@ -173,8 +173,19 @@ def main():
                     'headerFields':len(resp.get('headers',{}))})
         if len(shard_paths)!=len(set(shard_paths)) or shard_loaded!=len(shard_paths):
             raise RuntimeError('Not all same-origin header shard iframes loaded')
-        if any(not any(x['path']==path and x['status']==200 for x in shard_responses) for path in shard_paths):
-            raise RuntimeError('Selenium/CDP did not observe all static header shard HTTP 200 responses')
+        # Chrome performance logs can omit cached iframe Document events. Frame
+        # readiness is verified above; independently verify HTTP 200 and headers
+        # from the same first-party HTTPS host (diagnostic runner only).
+        http.client._MAXHEADERS=1000
+        shard_http=[]
+        for path in shard_paths:
+            url=parsed.scheme+'://'+parsed.hostname+path
+            request=Request(url,headers={'User-Agent':'wappalyzer-pages-selenium-diagnostics'})
+            with urlopen(request,timeout=20) as reply:
+                if reply.status!=200 or reply.geturl()!=url:
+                    raise RuntimeError('Static iframe response is not first-party HTTP 200: '+path)
+                shard_http.append({'path':path,'status':reply.status,
+                    'headerFields':len(reply.headers)})
         response=main_doc['params']['response']
         code=int(response.get('status',0))
         if code !=200:
@@ -233,6 +244,7 @@ def main():
             'headerShardFrames':len(shard_paths),
             'headerShardFramesLoaded':shard_loaded,
             'headerShardResponses':shard_responses,
+            'headerShardHttpVerification':shard_http,
             'cookieCount':len(cookies),
             'rawHtmlCapturedByCDP':cdp_raw,
             'htmlLength':len(html),
