@@ -72,7 +72,7 @@ const nativeCookieBaseline = JSON.parse(await readFile('data/native-cookie-prior
 const nativePreserveNames = new Set([...nativeCookieBaseline.gained,...nativeCookieBaseline.lost]);
 const extras = generateExtras(all, witness, priorityNames, urgentNames, nativePreserveNames);
 const headerShards = generateHeaderShards(all, witness, extras.headers.lines, priorityNames, urgentNames);
-const headOnlyPassiveLinks = [...new Set(extras.body.match(/<link\\b[^>]*>/gi) || [])].filter(tag => /\\shref=\"/i.test(tag) && !/\\srel=/i.test(tag)).slice(0,240);
+const headOnlyPassiveLinks = [...new Set(extras.body.match(/<link\b[^>]*>/gi) || [])].filter(tag => /\shref="/i.test(tag) && !/\srel=/i.test(tag)).slice(0,240);
 const root = rootAttributes(all);
 const compactGlobals = compileGlobals(all, witness);
 const inlineWitnesses = [...inlineSignatures].sort().map(v => '/*' + v.replace(/\*\//g,'* /') + '*/').join('');
