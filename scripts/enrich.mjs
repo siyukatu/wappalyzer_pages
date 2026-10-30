@@ -29,15 +29,6 @@ function selectorMarkup(raw) {
   // One compound selector. Skip combinators and pseudo selectors rather
   // than claim matches for complex DOM relationships we cannot satisfy.
   const s = raw.trim();
-  // For descendant selectors rooted at the real document element or body,
-  // emit the leaf chain inside the existing body instead of nesting an
-  // impossible second <html> or <body>. Exclude direct-child combinators:
-  // these witnesses live inside the fingerprint wrapper, not at body level.
-  const rooted = /^(?:(?:html\s*(?:>\s*|\s+)body)|html|body)\s+(.+)$/i.exec(s);
-  if (rooted && !rooted[1].startsWith('>')) {
-    const child = selectorMarkup(rooted[1]);
-    if (child) return child;
-  }
   // Simple descendant / child chains are useful for many Wappalyzer DOM rules.
   // Keep only relationship markup that can be produced without remote code.
   if(!/[~+:]/.test(s) && /[\s>]/.test(s)) {
