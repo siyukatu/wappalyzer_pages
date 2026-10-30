@@ -78,7 +78,7 @@ for(let i=1;i<=info.headerShards.count;i++) {
   assert.ok(html.includes('src="/'+path+'"'),'Parent does not eagerly load shard iframe');
   assert.ok(!/<script|<iframe|src="https?:/i.test(shard),'Shard must be inert and static');
 }
-assert.equal((html.match(/data-wappalyzer-header-shard/g)||[]).length,info.headerShards.count,'Iframe shard count mismatch');
+assert.equal((html.match(/<iframe data-wappalyzer-header-shard=/g)||[]).length,info.headerShards.count,'Iframe shard count mismatch');
 assert.equal(coverage.upstreamCount,info.technologies,'coverage count mismatch');
 assert.ok(coverage.upstreamNotInBaseline>0);
 assert.ok((await stat('dist/index.html')).size <=25*1024*1024,'Pages asset size limit');
