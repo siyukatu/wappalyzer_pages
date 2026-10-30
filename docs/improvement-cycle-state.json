@@ -171,5 +171,16 @@
     "sourceCommit": "1c8dd1e0fb316ce0f3af7d134590f17039e39205",
     "runUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41087616351",
     "reason": "Documentation/workflow-only revision not deployed: expected 1c8dd1e0..., live still 7535f7fb...; not a detection regression"
+  },
+  "executionPolicy": {
+    "updatedAt": "2026-10-31 JST",
+    "executionMode": "active-conversation-only",
+    "chatgptScheduledAutomations": "disabled-by-user-request",
+    "existingAutomationId": "6ae4c1775a1c81919f459b09aefcf6ea",
+    "existingAutomationConfirmedDisabled": true,
+    "noSchedulerOrCron": true,
+    "sessionLoop": "Within one active user turn, perform as many safe independent iterations as practical; a ChatGPT response cannot be literally infinite or auto-resume after completion.",
+    "subagents": "Prefer available subagent orchestration for independent investigations; absent tool support, parallelize read-only tool calls and persist succinct checkpoints. Never parallelize conflicting writes or production experiments.",
+    "manualCommit": "97055e0e4c85866a12c80134f2969772934cd16e"
   }
 }
