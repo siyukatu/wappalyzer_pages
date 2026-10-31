@@ -34,7 +34,8 @@ new Script(scripts[0],{filename:'wappalyzer-bootstrap.js'}).runInNewContext(sand
 assert.ok(cookieWrites.length>=100,'Cookie fingerprint bootstrap did not execute');
 assert.ok(Object.keys(sandbox).length>300,'Global fingerprint bootstrap did not execute');
 assert.match(headers,/connect-src 'none'/);
-assert.match(headers,/frame-src 'self'/);
+assert.match(headers,/frame-src 'none'/);
+assert.match(headers,/child-src 'none'/);
 assert.match(headers,/frame-ancestors 'self'/);
 assert.match(headers,/connect-src 'none'/);
 assert.match(headers,/X-Frame-Options: SAMEORIGIN/);
@@ -55,7 +56,7 @@ assert.ok(info.signatures.regressedPrioritized===138,'Lost-technology prioritiza
 assert.equal(coverage.baselineCount,3361,'Latest Wappalyzer CSV not selected');
 assert.equal(info.signatures.latestRegressedPrioritized,20,'Third-scan regression prioritization missing');
 assert.ok(info.extras.syntheticHeaderFields>=220,'Too few synthetic response-header fields');
-assert.ok(info.headerShards?.count>=1,'No static iframe header shards were generated');
+assert.equal(info.headerShards?.count,0,'No header-shard iframe loads are allowed');
 const sections=new Map();
 let current=null;
 for(const line of headers.split('\n')) {
@@ -66,19 +67,13 @@ for(const line of headers.split('\n')) {
 assert.ok(sections.has('/*') && sections.has('/') && sections.has('/index.html'),'Missing static security/root rules');
 assert.deepEqual(sections.get('/'),sections.get('/index.html'),'Root and /index.html fingerprints differ');
 assert.ok(sections.get('/').length>=220,'Root header fingerprints missing');
-assert.equal(sections.size,info.headerShards.count+3,'Unexpected _headers rule count');
+assert.equal(sections.size,3,'Unexpected _headers rule count');
+assert.ok(!headers.includes('/header-shards/'),'Unused iframe header path rules remain');
+assert.ok(!html.includes('data-wappalyzer-header-shard'),'Header-shard iframe would trigger requests');
+assert.ok(html.includes('<iframe'),'Keep DOM-only iframe fingerprints for detection');
+await assert.rejects(stat('dist/header-shards'), {code:'ENOENT'}, 'Unused static header-shards directory remains');
 assert.ok(sections.size<=100,'Cloudflare Pages maximum 100 _headers rules');
-for(let i=1;i<=info.headerShards.count;i++) {
-  const path='header-shards/'+String(i).padStart(2,'0')+'.html';
-  const shard=await readFile('dist/'+path,'utf8');
-  assert.ok(!/[\r\n]/.test(shard),'Shard HTML must be one physical line');
-  assert.ok((await stat('dist/'+path)).size<=25*1024*1024,'Shard exceeds Pages static size limit');
-  assert.ok(sections.has('/'+path.replace(/\.html$/, '')),'Shard _headers path rule missing');
-  assert.ok(sections.get('/'+path.replace(/\.html$/, '')).length>=1,'Shard lacks header fingerprints');
-  assert.ok(html.includes('src="/'+path.replace(/\.html$/, '')+'"'),'Parent does not eagerly load shard iframe');
-  assert.ok(!/<script|<iframe|src="https?:/i.test(shard),'Shard must be inert and static');
-}
-assert.equal((html.match(/<iframe data-wappalyzer-header-shard=/g)||[]).length,info.headerShards.count,'Iframe shard count mismatch');
+assert.equal((html.match(/<iframe data-wappalyzer-header-shard=/g)||[]).length,0,'Unexpected header shard iframe');
 assert.equal(coverage.upstreamCount,info.technologies,'coverage count mismatch');
 assert.ok(coverage.upstreamNotInBaseline>0);
 assert.ok((await stat('dist/index.html')).size <=25*1024*1024,'Pages asset size limit');
