@@ -75,9 +75,7 @@ const headerShards = generateHeaderShards(all, witness, extras.headers.lines, pr
 const root = rootAttributes(all);
 const compactGlobals = compileGlobals(all, witness);
 const inlineWitnesses = [...inlineSignatures].sort().map(v => '/*' + v.replace(/\*\//g,'* /') + '*/').join('');
-// Place inert script-rule witnesses at the start: extension collectors may sample
-// only a prefix of a large inline script. Keep globals and cookies unchanged.
-const bootstrap = (inlineWitnesses + ';' + compactGlobals.source + ';' + extras.bootstrap).replace(/[\r\n]/g,'');
+const bootstrap = (compactGlobals.source + ';' + extras.bootstrap + ';' + inlineWitnesses).replace(/[\r\n]/g,'');
 const hash = createHash('sha256').update(bootstrap).digest('base64');
 /* Static Pages cannot issue a fresh per-response nonce. Use CSP SHA-256 instead.
  * Hide the entire synthetic fingerprint body while keeping its DOM accessible.
