@@ -270,7 +270,7 @@ export function generateExtras(all, witness, missingNames = new Set(), urgentNam
 }
 export function emitHeaders(hash, extras, styleHash, shards = []) {
   const csp = [
-    "default-src 'none'", "script-src 'sha256-" + hash + "'",
+    "default-src 'none'", "script-src " + (Array.isArray(hash)?hash:[hash]).map(h=>"'sha256-"+h+"'").join(' '),
     "script-src-attr 'none'", "style-src 'sha256-" + styleHash + "'", "style-src-attr 'none'", "img-src 'none'",
     "font-src 'none'", "connect-src 'none'", "frame-src 'none'",
     "child-src 'none'", "worker-src 'none'", "media-src 'none'",
