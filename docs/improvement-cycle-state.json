@@ -12,58 +12,69 @@
     "verified": true
   },
   "lastExperiment": {
-    "id": "script-rule-witness-prefix",
-    "hypothesis": "Some native extension inline-script collectors may truncate or prioritize initial bytes; moving existing scripts-rule witnesses from after the 118 KB JS-global tree to the start of the same CSP-hashed script could increase native detection without changing other signals.",
+    "id": "second-csp-hashed-executable-script",
+    "hypothesis": "Put duplicate comment-only script-rule witnesses in their own second normal hash-authorized inline script so the CRX can scan that element independently, without modifying the original bootstrap.",
     "status": "measured-no-gain-reverted",
     "before": 4227,
     "after": 4227,
     "net": 0,
     "gained": [],
     "lost": [],
-    "changedFiles": [
-      "scripts/build.mjs"
+    "sourceCommitBefore": "f537249c7d555038359d0f225f285158efb19c33",
+    "experimentCommits": [
+      "c869fc92c3898f69807d45a6da71241fa540be9c",
+      "dfa71b7927ae15a5bd40cf4ae26443c3f6416c55",
+      "c0dfc74bd98233aead2af868c6d263258cfd7c4c"
     ],
-    "sourceCommitBefore": "224e0384178c7d29572c688e3c3ea85fd4f7e5fc",
-    "experimentCommit": "d8ec206024bade1d101ae756089061a3828a0028",
-    "revertCommit": "9e6b388fca4a3abc9146a441c669afec12079678",
-    "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41186228054",
-    "experimentNativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41186242844",
-    "revertBuildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41186474527",
-    "revertNativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41186487159",
+    "revertCommits": [
+      "cb86d77559d9ea26adddc60e330843bcdd24c0b8",
+      "32c843f8d0fbc7ea900c966eff7986a0fa52cda7",
+      "295e4a8d810699a35ffc46faef4e6d62bab78c82"
+    ],
+    "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41191597687",
+    "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41191613909",
+    "revertBuildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41191988756",
+    "revertNativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41192005260",
     "crxVersion": "6.12.8",
     "ruleSha256": "c4d96eabcda242bb9e84dd0fc06c38f614046184a4741d769875b22a18174c64",
     "browserVersion": "156.0.8078.80",
-    "notes": "Generated static HTML and inline script length unchanged at 773286 and 144696 chars. CSP digest changed as expected. CRX native matched deployed experiment SHA, 4227 -> 4227, gained/lost empty; revert restored original build.mjs blob 6d36b9f2376652c8bfa607d27b15edb05d0da474 and measured native 4227 with deployment and CRX SHA match. No regression."
+    "diagnostics": {
+      "iframeHttpDocumentResponses": 0,
+      "http404Responses": 0,
+      "thirdPartyHttpResponses": 0,
+      "cspBlockedRequests": 8230
+    },
+    "notes": "Two CSP hashes and two executable inline scripts build/verify correctly, but CRX native 4,227 unchanged with no gained/lost names. Reverted all three code files to byte-identical pre-trial blobs and verified live source commit and native 4,227 at final restore run. Earlier sequential intermediate commits failed build before all files updated; fully complete trial and revert both passed."
   },
   "nextHypotheses": [
     {
-      "id": "preserve-no-frame-traffic",
+      "id": "protect-no-iframe-network",
       "priority": 0,
       "status": "hard-constraint",
-      "goal": "Never restore synthetic iframe HTTP requests or header-shards assets; enforce CSP frame-src/child-src none, assert zero iframe HTTP document responses and HTTP 404."
+      "goal": "Require zero iframe HTTP document loads, zero HTTP 404 and zero external HTTP responses; keep frame-src and child-src none and existing 4227 names."
     },
     {
-      "id": "official-crx-version-change",
+      "id": "native-collector-gap-for-js-and-dom",
       "priority": 1,
-      "status": "watch",
-      "goal": "On next user-initiated active session, check whether official Wappalyzer CRX version, rule SHA, detector engine SHA or technology definitions differ. If so, establish a fresh native baseline using like-for-like conditions before changing code."
+      "status": "requires-concrete-new-evidence",
+      "goal": "Use exact CRX content/background scanning and resolve logic to identify a particular unmatched technology whose page-observable witness is missing. Do not repeat unproductive DOM head/meta/link, inline script order, data-block or duplicate inline script experiments."
     },
     {
-      "id": "native-js-dom-collector-proven-gap",
+      "id": "new-official-crx-baseline",
       "priority": 2,
-      "status": "watch-requires-concrete-evidence",
-      "goal": "Resume code experiments only after evidence isolates a specific official CRX collection/resolve path and a safe passive witness that has not already been tried. Approximate-only matches are not native evidence."
+      "status": "watch",
+      "goal": "When official CRX version/rule/engine SHA changes, establish a like-for-like native baseline before code changes."
     },
     {
-      "id": "non-evicting-cookie-reselection",
+      "id": "preserve-cookie-slot-360",
       "priority": 3,
-      "status": "watch-requires-native-preservation-proof",
-      "goal": "360 first-party browser cookies already filled and prior gains protected; replace only when a specific missing native cookie-only rule and a provably inert existing witness can be identified with no other native losses."
+      "status": "watch",
+      "goal": "No additional CHIPS slots; existing 360 preserved. Cookie value regex combining generated 0 new matches; don't repeat without a specific compatible alternative and native gain proof."
     }
   ],
-  "consecutiveNoGainIndependentHypotheses": 3,
+  "consecutiveNoGainIndependentHypotheses": 5,
   "mode": "watch",
-  "notes": "2026-10-31 JST: User-reported numerous iframe 404s fixed by retiring 3 header-shard frames and all shard assets, blocking all synthetic iframe navigations with CSP. The 247 iframe DOM-only witnesses remain without HTTP requests. Actual Selenium CDP: iframe HTTP Document responses 0, HTTP 404 responses 0, third-party HTTP responses 0. Native official CRX 6.12.8 remained 4227 (gained/lost empty). Two script no-fetch variants reduced CSP-blocked request attempts 8230->250 but lost 199 native technologies; both reverted, native 4227 reverified. Final code commit a86b090a7f6bc47dba0cd56cc5664f645f939b41 with matching deployment and native run 41190430687. User requested no scheduled automation; watch mode unchanged.",
+  "notes": "2026-10-31 JST: User asked to continue increasing detection count from 4227 with iframe HTTP/404 responses kept at zero. Three implementations tried: (1) monotone same-name cookie regex merge: no changed values, 363->363 rule matches; reverted. (2) second inert script data block: official native 4227->4227, gain/loss zero, reverted. (3) second normal CSP-hashed comment-only script: official native 4227->4227 gain/loss zero, reverted. Final code and tests restored with exact build/enrich/verify blobs matching pre-experiment, live SHA 295e4a8, native 4227 with zero iframe HTTP, zero 404, zero third-party responses, Chrome 156 and CRX 6.12.8. Mode watch, user can initiate next active session; ChatGPT scheduler remains disabled.",
   "experimentHistory": [
     {
       "id": "static-header-shards",
@@ -233,6 +244,72 @@
       "headLinkDomMatchesBefore": 2042,
       "headLinkDomMatchesAfter": 2078,
       "notes": "HEAD received 240 rel-less link DOM candidate copies, no extra third-party responses, unchanged headers/CSP. Official CRX-native count 4227->4227, gained/lost empty. Reverted scripts/build.mjs to exact preexperiment SHA 6d36b9f2376652c8bfa607d27b15edb05d0da474, reverified native 4227 with deployed SHA match. Earlier malformed regex intermediate commit was superseded by corrected experiment and must not be treated as an independent hypothesis."
+    },
+    {
+      "id": "script-rule-witness-prefix",
+      "hypothesis": "Some native extension inline-script collectors may truncate or prioritize initial bytes; moving existing scripts-rule witnesses from after the 118 KB JS-global tree to the start of the same CSP-hashed script could increase native detection without changing other signals.",
+      "status": "measured-no-gain-reverted",
+      "before": 4227,
+      "after": 4227,
+      "net": 0,
+      "gained": [],
+      "lost": [],
+      "changedFiles": [
+        "scripts/build.mjs"
+      ],
+      "sourceCommitBefore": "224e0384178c7d29572c688e3c3ea85fd4f7e5fc",
+      "experimentCommit": "d8ec206024bade1d101ae756089061a3828a0028",
+      "revertCommit": "9e6b388fca4a3abc9146a441c669afec12079678",
+      "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41186228054",
+      "experimentNativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41186242844",
+      "revertBuildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41186474527",
+      "revertNativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41186487159",
+      "crxVersion": "6.12.8",
+      "ruleSha256": "c4d96eabcda242bb9e84dd0fc06c38f614046184a4741d769875b22a18174c64",
+      "browserVersion": "156.0.8078.80",
+      "notes": "Generated static HTML and inline script length unchanged at 773286 and 144696 chars. CSP digest changed as expected. CRX native matched deployed experiment SHA, 4227 -> 4227, gained/lost empty; revert restored original build.mjs blob 6d36b9f2376652c8bfa607d27b15edb05d0da474 and measured native 4227 with deployment and CRX SHA match. No regression."
+    },
+    {
+      "id": "same-name-cookie-monotone-combination",
+      "hypothesis": "Improve multiple regex matches per existing first-party cookie value without changing the 360-cookie names or HTTP behavior.",
+      "status": "build-measured-zero-candidates-reverted",
+      "sourceCommitBefore": "85ed07159fd8dba9f01918d59881643bf052bdfe",
+      "experimentCommit": "89a38e1d2681f803823761516a4e5bb91df2e8c3",
+      "revertCommit": "80ed407d6a126a532fdccfb8c69f0f8da752b49c",
+      "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41191130822",
+      "nativeMeasurement": "not-performed; replaced by following experiment's workflow due to concurrency",
+      "generatedStats": {
+        "cookieCount": 360,
+        "mergedCookies": 0,
+        "cookieRegexMatchesBefore": 363,
+        "cookieRegexMatchesAfter": 363
+      },
+      "notes": "The generated 360 cookies and values did not change and no candidate gained a second regex match. Do not count this as a native-measured gain/no-gain experiment."
+    },
+    {
+      "id": "second-inert-script-data-block",
+      "hypothesis": "Expose existing script-rule comment witnesses in a separate non-executable JSON data-block script; potential native independent element detection without outbound HTTP.",
+      "status": "measured-no-gain-reverted",
+      "before": 4227,
+      "after": 4227,
+      "net": 0,
+      "gained": [],
+      "lost": [],
+      "sourceCommitBefore": "80ed407d6a126a532fdccfb8c69f0f8da752b49c",
+      "experimentCommit": "da825959373c4d3c905db71d0bfd0549a89c3b93",
+      "revertCommit": "f537249c7d555038359d0f225f285158efb19c33",
+      "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41191266990",
+      "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41191284083",
+      "crxVersion": "6.12.8",
+      "ruleSha256": "c4d96eabcda242bb9e84dd0fc06c38f614046184a4741d769875b22a18174c64",
+      "browserVersion": "156.0.8078.80",
+      "diagnostics": {
+        "iframeHttpDocumentResponses": 0,
+        "http404Responses": 0,
+        "thirdPartyHttpResponses": 0,
+        "cspBlockedRequests": 8230
+      },
+      "notes": "Separate application/json data block increased inline script element count 94->95; exact deployment SHA matched and genuine CRX found no additions/losses. Reverted."
     }
   ],
   "latestVerified": {
@@ -242,9 +319,9 @@
     "crxVersion": "6.12.8",
     "ruleSha256": "c4d96eabcda242bb9e84dd0fc06c38f614046184a4741d769875b22a18174c64",
     "browserVersion": "156.0.8078.80",
-    "sourceCommit": "a86b090a7f6bc47dba0cd56cc5664f645f939b41",
-    "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41190416206",
-    "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41190430687",
+    "sourceCommit": "295e4a8d810699a35ffc46faef4e6d62bab78c82",
+    "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41191988756",
+    "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41192005260",
     "deployedShaMatched": true,
     "verified": true,
     "iframeHttpDocumentResponses": 0,
@@ -268,7 +345,7 @@
     "subagents": "Prefer available subagent orchestration for independent investigations; absent tool support, parallelize read-only tool calls and persist succinct checkpoints. Never parallelize conflicting writes or production experiments.",
     "manualCommit": "97055e0e4c85866a12c80134f2969772934cd16e"
   },
-  "stopReason": "Three consecutive independent high-priority measured no-gain hypotheses after latest gain (head-meta DOM, head-link DOM, inline-script witness relocation), with no concretely justified safe independent new implementation. Halt code/deploy experimentation according to manual section 5; this is not an optimality proof. User explicitly disallowed ChatGPT scheduler; no scheduled execution will be enabled. Reassess on a future active conversation turn if new evidence is available.",
+  "stopReason": "After last measured gain (+3 cookies to 4227), five distinct experimentally measured native no-gain hypotheses (head meta DOM, head link DOM, inline script witness prefix, separate inert data-block, separate hash-authorized script). Cookie monotone merging also yielded no new generated regex matches, so no native run was needed. No independently proven safe candidate to test without replacing protected 360 cookies or adding HTTP requests. Remain in watch, but this is not optimality proof.",
   "safetyFixes": [
     {
       "id": "disable-iframe-http-404",
