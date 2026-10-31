@@ -272,8 +272,8 @@ export function emitHeaders(hash, extras, styleHash, shards = []) {
   const csp = [
     "default-src 'none'", "script-src 'sha256-" + hash + "'",
     "script-src-attr 'none'", "style-src 'sha256-" + styleHash + "'", "style-src-attr 'none'", "img-src 'none'",
-    "font-src 'none'", "connect-src 'none'", "frame-src 'self'",
-    "child-src 'self'", "worker-src 'none'", "media-src 'none'",
+    "font-src 'none'", "connect-src 'none'", "frame-src 'none'",
+    "child-src 'none'", "worker-src 'none'", "media-src 'none'",
     "manifest-src 'none'", "object-src 'none'", "form-action 'none'",
     "base-uri 'none'", "frame-ancestors 'self'"
   ].join('; ');
