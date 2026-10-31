@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Generate synthetic Wappalyzer fingerprints on static Cloudflare Pages assets only.
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { generateExtras, emitHeaders } from './enrich.mjs';
 import { compileGlobals } from './globals.mjs';
@@ -11,7 +11,6 @@ import { makePassiveUrlCandidates } from './passive-urls.mjs';
 import { cssFingerprints } from './css-witness.mjs';
 import { fetchStoreRules } from './store-rules.mjs';
 import { rootAttributes } from './root-dom.mjs';
-import { generateHeaderShards } from './header-shards.mjs';
 
 const OUT = 'dist';
 const escape = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -71,7 +70,9 @@ for (const [name, item] of Object.entries(all)) {
 const nativeCookieBaseline = JSON.parse(await readFile('data/native-cookie-priority.json','utf8'));
 const nativePreserveNames = new Set([...nativeCookieBaseline.gained,...nativeCookieBaseline.lost]);
 const extras = generateExtras(all, witness, priorityNames, urgentNames, nativePreserveNames);
-const headerShards = generateHeaderShards(all, witness, extras.headers.lines, priorityNames, urgentNames);
+// Native CRX measured no gain from static header-shard iframes. Keep them
+// disabled: synthetic iframe src URLs otherwise cause unnecessary 404 fetches.
+const headerShards = {shards:[], stats:{count:0,fields:[],bytes:[],estimatedNovelHeaderRuleNames:0,note:'Disabled: no native gain; page makes no iframe requests.'}};
 const root = rootAttributes(all);
 const compactGlobals = compileGlobals(all, witness);
 const inlineWitnesses = [...inlineSignatures].sort().map(v => '/*' + v.replace(/\*\//g,'* /') + '*/').join('');
@@ -79,10 +80,10 @@ const bootstrap = (compactGlobals.source + ';' + extras.bootstrap + ';' + inline
 const hash = createHash('sha256').update(bootstrap).digest('base64');
 /* Static Pages cannot issue a fresh per-response nonce. Use CSP SHA-256 instead.
  * Hide the entire synthetic fingerprint body while keeping its DOM accessible.
- * The iframe/object/embed rule also protects against markup that escapes the wrapper.
+ * Browsers must not navigate synthetic iframe src values in the document.
  */
 const cssMarkers = cssFingerprints(all, witness);
-const concealCss = 'html{overflow-x:hidden!important}body{position:fixed!important;left:-200vw!important;top:0!important;width:1px!important;height:1px!important;overflow:hidden!important;opacity:0!important}iframe,object,embed{display:none!important}iframe[data-wappalyzer-header-shard]{display:block!important;position:absolute!important;left:-200vw!important;top:0!important;width:1px!important;height:1px!important;border:0!important;opacity:0!important;pointer-events:none!important}' + cssMarkers.css;
+const concealCss = 'html{overflow-x:hidden!important}body{position:fixed!important;left:-200vw!important;top:0!important;width:1px!important;height:1px!important;overflow:hidden!important;opacity:0!important}iframe,object,embed{display:none!important}' + cssMarkers.css;
 const styleHash = createHash('sha256').update(concealCss).digest('base64');
 const sourceCommit = process.env.CF_PAGES_COMMIT_SHA || process.env.GITHUB_SHA || 'local';
 const pageBuildVersion = '5';
@@ -106,7 +107,6 @@ const html = '<!doctype html>\n<html lang="en"'+root.html+'><head><meta charset=
   extras.body + '\n' +
   [...dom].join('\n') + '\n<div>' + [...text].map(escape).join(' ') + '</div>\n' +
   '</div>\n' +
-  headerShards.shards.map(shard => '<iframe data-wappalyzer-header-shard="" src="/'+shard.path.replace(/\.html$/, '')+'" title="Synthetic header fingerprint shard" loading="eager" referrerpolicy="no-referrer" tabindex="-1" aria-hidden="true"></iframe>').join('') +
   '</body></html>\n';
 // All dynamic content is emitted at build time; no Cloudflare Functions.
 await mkdir(OUT, { recursive: true });
@@ -114,9 +114,9 @@ await mkdir(OUT, { recursive: true });
 const compactHtml = html.replace(/[\r\n]/g,'');
 if (/[\r\n]/.test(compactHtml)) throw new Error('index.html must be one line');
 await writeFile(OUT + '/index.html', compactHtml);
-await writeFile(OUT + '/_headers', emitHeaders(hash, extras, styleHash, headerShards.shards));
-await mkdir(OUT + '/header-shards', { recursive: true });
-for (const shard of headerShards.shards) await writeFile(OUT + '/' + shard.path, shard.html);
+await writeFile(OUT + '/_headers', emitHeaders(hash, extras, styleHash));
+// Remove legacy static shard assets from incremental local builds too.
+await rm(OUT + '/header-shards', {recursive:true, force:true});
 await writeFile(OUT + '/404.html', '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><title>404 Not Found</title></head><body><h1>404 Not Found</h1><a href="/">Home</a></body></html>');
 await writeFile(OUT + '/robots.txt', 'User-agent: *\nDisallow: /\n');
 await writeFile(OUT + '/coverage.json', JSON.stringify(latestCoverage, null, 2));
