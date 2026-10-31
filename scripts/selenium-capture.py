@@ -163,6 +163,8 @@ def main():
             raise RuntimeError('Selenium/CDP did not observe the top-level Pages response')
         main_doc=root_docs[-1]
         shard_paths=driver.execute_script("return Array.from(document.querySelectorAll('iframe[data-wappalyzer-header-shard]'), f => new URL(f.src).pathname)")
+        if shard_paths:
+            raise RuntimeError('Retired header-shard iframe markup is present in live production')
         shard_loaded=driver.execute_script("return Array.from(document.querySelectorAll('iframe[data-wappalyzer-header-shard]')).filter(f => f.contentDocument && f.contentDocument.readyState === 'complete').length")
         shard_responses=[]
         for event in documents:
@@ -186,6 +188,19 @@ def main():
                     raise RuntimeError('Static iframe response is not first-party HTTP 200: '+path)
                 shard_http.append({'path':path,'status':reply.status,
                     'headerFields':len(reply.headers)})
+        # The static page must never fetch child documents. DOM-only iframe
+        # fingerprints remain queryable, but CSP frame-src/child-src deny them.
+        frame_documents=[e for e in responses if e.get('params',{}).get('type')=='Document'
+            and urlparse(e['params']['response'].get('url','')).scheme in ('http','https')
+            and not (urlparse(e['params']['response'].get('url','')).hostname==parsed.hostname
+                     and urlparse(e['params']['response'].get('url','')).path==parsed.path)]
+        http_not_found=[e['params']['response'].get('url','') for e in responses
+            if int(e.get('params',{}).get('response',{}).get('status',0))==404]
+        if frame_documents:
+            raise RuntimeError('Unexpected iframe HTTP document loads: '+
+                json.dumps([e['params']['response'].get('url') for e in frame_documents][:10]))
+        if http_not_found:
+            raise RuntimeError('Unexpected HTTP 404 responses: '+json.dumps(http_not_found[:10]))
         response=main_doc['params']['response']
         code=int(response.get('status',0))
         if code !=200:
@@ -245,6 +260,8 @@ def main():
             'headerShardFramesLoaded':shard_loaded,
             'headerShardResponses':shard_responses,
             'headerShardHttpVerification':shard_http,
+            'iframeHttpDocumentResponses':len(frame_documents),
+            'http404Responses':len(http_not_found),
             'cookieCount':len(cookies),
             'rawHtmlCapturedByCDP':cdp_raw,
             'htmlLength':len(html),
@@ -261,6 +278,8 @@ def main():
             'url':page['url'],**page['diagnostics']},ensure_ascii=False))
         if not csp:
             raise RuntimeError('Live deployment did not expose any CSP header')
+        if "frame-src 'none'" not in csp or "child-src 'none'" not in csp:
+            raise RuntimeError('Live deployment permits iframe navigation')
         if not page['diagnostics']['cspStyleApplied']:
             raise RuntimeError('Concealment CSS was not applied in the deployed browser page')
     finally:
