@@ -37,6 +37,12 @@
   },
   "nextHypotheses": [
     {
+      "id": "preserve-no-frame-traffic",
+      "priority": 0,
+      "status": "hard-constraint",
+      "goal": "Never restore synthetic iframe HTTP requests or header-shards assets; enforce CSP frame-src/child-src none, assert zero iframe HTTP document responses and HTTP 404."
+    },
+    {
       "id": "official-crx-version-change",
       "priority": 1,
       "status": "watch",
@@ -57,7 +63,7 @@
   ],
   "consecutiveNoGainIndependentHypotheses": 3,
   "mode": "watch",
-  "notes": "2026-10-31 JST: native 4227, CRX 6.12.8 SHA c4d96eab..., Chromium 156.0.8078.80. New script witness prefix experiment generated exact same size and passed CI but yielded zero native gains/losses, and was reverted with code blob exact match and official CRX native reverified at 4227. Three independent no-gain trials since cookie gains; watch state avoids speculative deployments, unbounded GitHub Actions, and unsafe replacement of 360 protected cookies. User may request resumed evaluation when new CRX, engine, or concrete viable hypothesis appears; no ChatGPT periodic automations.",
+  "notes": "2026-10-31 JST: User-reported numerous iframe 404s fixed by retiring 3 header-shard frames and all shard assets, blocking all synthetic iframe navigations with CSP. The 247 iframe DOM-only witnesses remain without HTTP requests. Actual Selenium CDP: iframe HTTP Document responses 0, HTTP 404 responses 0, third-party HTTP responses 0. Native official CRX 6.12.8 remained 4227 (gained/lost empty). Two script no-fetch variants reduced CSP-blocked request attempts 8230->250 but lost 199 native technologies; both reverted, native 4227 reverified. Final code commit a86b090a7f6bc47dba0cd56cc5664f645f939b41 with matching deployment and native run 41190430687. User requested no scheduled automation; watch mode unchanged.",
   "experimentHistory": [
     {
       "id": "static-header-shards",
@@ -236,11 +242,15 @@
     "crxVersion": "6.12.8",
     "ruleSha256": "c4d96eabcda242bb9e84dd0fc06c38f614046184a4741d769875b22a18174c64",
     "browserVersion": "156.0.8078.80",
-    "sourceCommit": "9e6b388fca4a3abc9146a441c669afec12079678",
-    "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41186474527",
-    "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41186487159",
+    "sourceCommit": "a86b090a7f6bc47dba0cd56cc5664f645f939b41",
+    "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41190416206",
+    "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41190430687",
     "deployedShaMatched": true,
-    "verified": true
+    "verified": true,
+    "iframeHttpDocumentResponses": 0,
+    "http404Responses": 0,
+    "thirdPartyHttpResponses": 0,
+    "cspBlockedRequests": 8230
   },
   "latestFailedNonMeasurement": {
     "sourceCommit": "1c8dd1e0fb316ce0f3af7d134590f17039e39205",
@@ -258,5 +268,92 @@
     "subagents": "Prefer available subagent orchestration for independent investigations; absent tool support, parallelize read-only tool calls and persist succinct checkpoints. Never parallelize conflicting writes or production experiments.",
     "manualCommit": "97055e0e4c85866a12c80134f2969772934cd16e"
   },
-  "stopReason": "Three consecutive independent high-priority measured no-gain hypotheses after latest gain (head-meta DOM, head-link DOM, inline-script witness relocation), with no concretely justified safe independent new implementation. Halt code/deploy experimentation according to manual section 5; this is not an optimality proof. User explicitly disallowed ChatGPT scheduler; no scheduled execution will be enabled. Reassess on a future active conversation turn if new evidence is available."
+  "stopReason": "Three consecutive independent high-priority measured no-gain hypotheses after latest gain (head-meta DOM, head-link DOM, inline-script witness relocation), with no concretely justified safe independent new implementation. Halt code/deploy experimentation according to manual section 5; this is not an optimality proof. User explicitly disallowed ChatGPT scheduler; no scheduled execution will be enabled. Reassess on a future active conversation turn if new evidence is available.",
+  "safetyFixes": [
+    {
+      "id": "disable-iframe-http-404",
+      "date": "2026-10-31 JST",
+      "userReportedIssue": "Many generated iframe document loads returned HTTP 404.",
+      "status": "native-verified-adopted",
+      "codeCommits": [
+        "2caa5bf0712764317404fd40a9daec290e003fd0",
+        "8790bf06451de665524429a425ff0c0cc801637f",
+        "721303b829c30fe14c31a68e39ee47aa5a9ab7e0",
+        "a6f58344486b88c9688442267f7c9a0548cd3c6e"
+      ],
+      "finalVerifiedCodeCommit": "a86b090a7f6bc47dba0cd56cc5664f645f939b41",
+      "affectedFiles": [
+        "scripts/build.mjs",
+        "scripts/enrich.mjs",
+        "scripts/verify-generated.mjs",
+        "scripts/selenium-capture.py"
+      ],
+      "before": {
+        "totalIframeTags": 250,
+        "headerShardFrames": 3,
+        "nativeDetected": 4227
+      },
+      "after": {
+        "totalIframeTags": 247,
+        "headerShardFrames": 0,
+        "iframeHttpDocumentResponses": 0,
+        "http404Responses": 0,
+        "thirdPartyHttpResponses": 0,
+        "cspBlockedRequests": 8230,
+        "nativeDetected": 4227,
+        "gained": [],
+        "lost": [],
+        "deployedShaMatched": true
+      },
+      "ruleVersion": "6.12.8",
+      "ruleSha256": "c4d96eabcda242bb9e84dd0fc06c38f614046184a4741d769875b22a18174c64",
+      "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41190416206",
+      "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41190430687",
+      "notes": "CSP frame-src none/child-src none and no static header shard assets. Retain 247 iframe DOM witness attributes without navigation. Cannot re-enable real frame loads merely to improve detections."
+    },
+    {
+      "id": "inert-synthetic-script-src",
+      "date": "2026-10-31 JST",
+      "status": "measured-regression-reverted",
+      "hypotheses": [
+        "Add unknown inert script type to all 7,986 synthetic script[src] tags",
+        "Add nomodule to all 7,986 synthetic script[src] tags"
+      ],
+      "experimentCommits": [
+        "7f0a09ddfdb0fc8ca1ad8a4ee37572816133c449",
+        "23f4d61898ed36d57ec3a251f15bddb70d344c2f"
+      ],
+      "experimentNativeRuns": [
+        "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41189776086",
+        "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41190206137"
+      ],
+      "revertCommits": [
+        "244f86cfaa41996d9c10b75f76716d985e521863",
+        "a86b090a7f6bc47dba0cd56cc5664f645f939b41"
+      ],
+      "revertNativeRuns": [
+        "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41189998740",
+        "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41190430687"
+      ],
+      "before": {
+        "nativeDetected": 4227,
+        "cspBlockedRequests": 8230
+      },
+      "during": {
+        "nativeDetected": 4028,
+        "cspBlockedRequests": 250,
+        "gained": [],
+        "lost": 199,
+        "iframeHttpDocumentResponses": 0,
+        "http404Responses": 0
+      },
+      "afterRevert": {
+        "nativeDetected": 4227,
+        "cspBlockedRequests": 8230,
+        "iframeHttpDocumentResponses": 0,
+        "http404Responses": 0
+      },
+      "note": "Both variants lost same 199 actual native technologies, so do not reattempt without per-script native preservation proof. CSP-blocked browser request attempts are not HTTP 404 responses."
+    }
+  ]
 }
