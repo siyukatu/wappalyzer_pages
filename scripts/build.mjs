@@ -100,11 +100,14 @@ const html = '<!doctype html>\n<html lang="en"'+root.html+'><head><meta charset=
     return kinds.map(kind => '<meta '+kind+'="'+escape(name)+'" content="'+escape(val)+'">');
   }).join('') +
   [...links].map((url) => '<link rel="stylesheet" href="' + escape(url) + '">').join('\n') + '\n' +
-  [...scripts].map((url) => '<script src="' + escape(url) + '"></script>').join('\n') + '\n' +
+  // Unknown script types are inert data blocks: src remains available to
+  // fingerprint scanners, but Chrome does not request the URL.
+  [...scripts].map((url) => '<script type="application/x-wappalyzer-fingerprint" src="' + escape(url) + '"></script>').join('\n') + '\n' +
   '<script>' + bootstrap.replace(/<\/script/gi, '<\\/script') + '</script>\n</head><body'+root.body+'>\n' +
   '<!-- Synthetic signatures only; named technologies are NOT necessarily installed. -->\n' +
   '<div id="wappalyzer-fingerprints">\n' +
-  extras.body + '\n' +
+  // DOM-only script[src] witnesses should also avoid network attempts.
+  extras.body.replace(/<script(?=[^>]*\bsrc=)(?![^>]*\btype=)/gi, '<script type="application/x-wappalyzer-fingerprint"') + '\n' +
   [...dom].join('\n') + '\n<div>' + [...text].map(escape).join(' ') + '</div>\n' +
   '</div>\n' +
   '</body></html>\n';
