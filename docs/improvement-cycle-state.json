@@ -12,59 +12,52 @@
     "verified": true
   },
   "lastExperiment": {
-    "id": "passive-head-link-dom",
-    "hypothesis": "Duplicating 240 rel-less DOM link witness elements into document head, while preserving body witnesses, could make head-only collector conditions reachable without external requests.",
+    "id": "script-rule-witness-prefix",
+    "hypothesis": "Some native extension inline-script collectors may truncate or prioritize initial bytes; moving existing scripts-rule witnesses from after the 118 KB JS-global tree to the start of the same CSP-hashed script could increase native detection without changing other signals.",
     "status": "measured-no-gain-reverted",
     "before": 4227,
     "after": 4227,
+    "net": 0,
     "gained": [],
     "lost": [],
-    "net": 0,
-    "sourceCommitBefore": "365935c247901fb8ac1a3741f5143aeac035af4e",
-    "experimentCommits": [
-      "1a35c162b4b0c5935bcb63b4ff162324616e8490",
-      "71ccf7794c87724db553f8857b1d81ecae21056b"
-    ],
-    "experimentCommit": "71ccf7794c87724db553f8857b1d81ecae21056b",
-    "revertCommit": "4175e2fdfa559aa7aa26147892601fbbb49759d9",
     "changedFiles": [
       "scripts/build.mjs"
     ],
-    "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41117885930",
-    "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41117926555",
-    "revertBuildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41118386191",
-    "revertNativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41118413326",
+    "sourceCommitBefore": "224e0384178c7d29572c688e3c3ea85fd4f7e5fc",
+    "experimentCommit": "d8ec206024bade1d101ae756089061a3828a0028",
+    "revertCommit": "9e6b388fca4a3abc9146a441c669afec12079678",
+    "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41186228054",
+    "experimentNativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41186242844",
+    "revertBuildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41186474527",
+    "revertNativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41186487159",
     "crxVersion": "6.12.8",
     "ruleSha256": "c4d96eabcda242bb9e84dd0fc06c38f614046184a4741d769875b22a18174c64",
     "browserVersion": "156.0.8078.80",
-    "addedHeadLinkWitnesses": 240,
-    "headLinkDomMatchesBefore": 2042,
-    "headLinkDomMatchesAfter": 2078,
-    "notes": "HEAD received 240 rel-less link DOM candidate copies, no extra third-party responses, unchanged headers/CSP. Official CRX-native count 4227->4227, gained/lost empty. Reverted scripts/build.mjs to exact preexperiment SHA 6d36b9f2376652c8bfa607d27b15edb05d0da474, reverified native 4227 with deployed SHA match. Earlier malformed regex intermediate commit was superseded by corrected experiment and must not be treated as an independent hypothesis."
+    "notes": "Generated static HTML and inline script length unchanged at 773286 and 144696 chars. CSP digest changed as expected. CRX native matched deployed experiment SHA, 4227 -> 4227, gained/lost empty; revert restored original build.mjs blob 6d36b9f2376652c8bfa607d27b15edb05d0da474 and measured native 4227 with deployment and CRX SHA match. No regression."
   },
   "nextHypotheses": [
     {
-      "id": "investigate-native-js-dom-path",
+      "id": "official-crx-version-change",
       "priority": 1,
-      "status": "requires-focused-analysis",
-      "goal": "Before another edit, correlate native CRX content.js/js.js/dom.js execution and resolve/requires/excludes with approximation-only JS 1,482 and DOM 866 (overlap). Current getDom performance passes 50 and Browser JS 5,623 paths are diagnostic, not proof of native receipt. Identify exactly which safe page-visible proof is missing; do not weaken CSP."
-    },
-    {
-      "id": "cookie-protected-target-swap",
-      "priority": 2,
-      "status": "only-with-specific-proof",
-      "goal": "All 360 browser cookie slots are used; explore only if specific missing cookie-only technology can replace a demonstrably ineffective witness while preserving 4,227 previously native-detected names."
-    },
-    {
-      "id": "new-crx-baseline",
-      "priority": 3,
       "status": "watch",
-      "goal": "On new official CRX version/SHA, construct fresh native baseline rather than compare counts across rule sets."
+      "goal": "On next user-initiated active session, check whether official Wappalyzer CRX version, rule SHA, detector engine SHA or technology definitions differ. If so, establish a fresh native baseline using like-for-like conditions before changing code."
+    },
+    {
+      "id": "native-js-dom-collector-proven-gap",
+      "priority": 2,
+      "status": "watch-requires-concrete-evidence",
+      "goal": "Resume code experiments only after evidence isolates a specific official CRX collection/resolve path and a safe passive witness that has not already been tried. Approximate-only matches are not native evidence."
+    },
+    {
+      "id": "non-evicting-cookie-reselection",
+      "priority": 3,
+      "status": "watch-requires-native-preservation-proof",
+      "goal": "360 first-party browser cookies already filled and prior gains protected; replace only when a specific missing native cookie-only rule and a provably inert existing witness can be identified with no other native losses."
     }
   ],
-  "consecutiveNoGainIndependentHypotheses": 2,
-  "mode": "active",
-  "notes": "2026-10-31 JST: native remained 4227 after two distinct, measured, safe no-gain experiments: +8 head DOM meta nodes and +240 passive head DOM link nodes. Each experiment was reverted and the restored production code was again measured at 4227 with 0 losses, matching Chrome 156.0.8078.80 and Web Store CRX 6.12.8 SHA. After two attempts, no third concrete independent edit with compelling native collection evidence was established during this active turn. This does not prove a maximum. Session-only execution was requested; ChatGPT scheduling is disabled. Continue only when another active conversation turn has tools/authorization; do not assert background/infinite continuation.",
+  "consecutiveNoGainIndependentHypotheses": 3,
+  "mode": "watch",
+  "notes": "2026-10-31 JST: native 4227, CRX 6.12.8 SHA c4d96eab..., Chromium 156.0.8078.80. New script witness prefix experiment generated exact same size and passed CI but yielded zero native gains/losses, and was reverted with code blob exact match and official CRX native reverified at 4227. Three independent no-gain trials since cookie gains; watch state avoids speculative deployments, unbounded GitHub Actions, and unsafe replacement of 360 protected cookies. User may request resumed evaluation when new CRX, engine, or concrete viable hypothesis appears; no ChatGPT periodic automations.",
   "experimentHistory": [
     {
       "id": "static-header-shards",
@@ -203,6 +196,37 @@
       "revertBuildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41117169061",
       "revertNativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41117199724",
       "notes": "Eight new safe head meta signatures; root native 4,227 both before and after; normal code blobs restored and reverified."
+    },
+    {
+      "id": "passive-head-link-dom",
+      "hypothesis": "Duplicating 240 rel-less DOM link witness elements into document head, while preserving body witnesses, could make head-only collector conditions reachable without external requests.",
+      "status": "measured-no-gain-reverted",
+      "before": 4227,
+      "after": 4227,
+      "gained": [],
+      "lost": [],
+      "net": 0,
+      "sourceCommitBefore": "365935c247901fb8ac1a3741f5143aeac035af4e",
+      "experimentCommits": [
+        "1a35c162b4b0c5935bcb63b4ff162324616e8490",
+        "71ccf7794c87724db553f8857b1d81ecae21056b"
+      ],
+      "experimentCommit": "71ccf7794c87724db553f8857b1d81ecae21056b",
+      "revertCommit": "4175e2fdfa559aa7aa26147892601fbbb49759d9",
+      "changedFiles": [
+        "scripts/build.mjs"
+      ],
+      "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41117885930",
+      "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41117926555",
+      "revertBuildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41118386191",
+      "revertNativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41118413326",
+      "crxVersion": "6.12.8",
+      "ruleSha256": "c4d96eabcda242bb9e84dd0fc06c38f614046184a4741d769875b22a18174c64",
+      "browserVersion": "156.0.8078.80",
+      "addedHeadLinkWitnesses": 240,
+      "headLinkDomMatchesBefore": 2042,
+      "headLinkDomMatchesAfter": 2078,
+      "notes": "HEAD received 240 rel-less link DOM candidate copies, no extra third-party responses, unchanged headers/CSP. Official CRX-native count 4227->4227, gained/lost empty. Reverted scripts/build.mjs to exact preexperiment SHA 6d36b9f2376652c8bfa607d27b15edb05d0da474, reverified native 4227 with deployed SHA match. Earlier malformed regex intermediate commit was superseded by corrected experiment and must not be treated as an independent hypothesis."
     }
   ],
   "latestVerified": {
@@ -212,9 +236,9 @@
     "crxVersion": "6.12.8",
     "ruleSha256": "c4d96eabcda242bb9e84dd0fc06c38f614046184a4741d769875b22a18174c64",
     "browserVersion": "156.0.8078.80",
-    "sourceCommit": "4175e2fdfa559aa7aa26147892601fbbb49759d9",
-    "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41118386191",
-    "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41118413326",
+    "sourceCommit": "9e6b388fca4a3abc9146a441c669afec12079678",
+    "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41186474527",
+    "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41186487159",
     "deployedShaMatched": true,
     "verified": true
   },
@@ -233,5 +257,6 @@
     "sessionLoop": "Within one active user turn, perform as many safe independent iterations as practical; a ChatGPT response cannot be literally infinite or auto-resume after completion.",
     "subagents": "Prefer available subagent orchestration for independent investigations; absent tool support, parallelize read-only tool calls and persist succinct checkpoints. Never parallelize conflicting writes or production experiments.",
     "manualCommit": "97055e0e4c85866a12c80134f2969772934cd16e"
-  }
+  },
+  "stopReason": "Three consecutive independent high-priority measured no-gain hypotheses after latest gain (head-meta DOM, head-link DOM, inline-script witness relocation), with no concretely justified safe independent new implementation. Halt code/deploy experimentation according to manual section 5; this is not an optimality proof. User explicitly disallowed ChatGPT scheduler; no scheduled execution will be enabled. Reassess on a future active conversation turn if new evidence is available."
 }
