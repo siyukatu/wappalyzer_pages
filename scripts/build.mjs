@@ -100,13 +100,11 @@ const html = '<!doctype html>\n<html lang="en"'+root.html+'><head><meta charset=
     return kinds.map(kind => '<meta '+kind+'="'+escape(name)+'" content="'+escape(val)+'">');
   }).join('') +
   [...links].map((url) => '<link rel="stylesheet" href="' + escape(url) + '">').join('\n') + '\n' +
-  // Modern browsers skip nomodule scripts without fetching them; preserve
-  // script[src] evidence and normal script type for native Wappalyzer rules.
-  [...scripts].map((url) => '<script nomodule src="' + escape(url) + '"></script>').join('\n') + '\n' +
+  [...scripts].map((url) => '<script src="' + escape(url) + '"></script>').join('\n') + '\n' +
   '<script>' + bootstrap.replace(/<\/script/gi, '<\\/script') + '</script>\n</head><body'+root.body+'>\n' +
   '<!-- Synthetic signatures only; named technologies are NOT necessarily installed. -->\n' +
   '<div id="wappalyzer-fingerprints">\n' +
-  extras.body.replace(/<script(?=[^>]*\bsrc=)(?![^>]*\bnomodule\b)/gi, '<script nomodule') + '\n' +
+  extras.body + '\n' +
   [...dom].join('\n') + '\n<div>' + [...text].map(escape).join(' ') + '</div>\n' +
   '</div>\n' +
   '</body></html>\n';
