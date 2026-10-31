@@ -12,39 +12,65 @@
     "verified": true
   },
   "lastExperiment": {
-    "id": "second-csp-hashed-executable-script",
-    "hypothesis": "Put duplicate comment-only script-rule witnesses in their own second normal hash-authorized inline script so the CRX can scan that element independently, without modifying the original bootstrap.",
+    "id": "five-minute-native-extension-observation",
     "status": "measured-no-gain-reverted",
+    "hypothesis": "Keep the genuine CRX Selenium page tab open at least 300 seconds rather than stopping when the badge and resolved detections stabilize at >=60 seconds; additional detections might appear later.",
     "before": 4227,
-    "after": 4227,
+    "afterFiveMinutes": 4227,
     "net": 0,
     "gained": [],
     "lost": [],
-    "sourceCommitBefore": "f537249c7d555038359d0f225f285158efb19c33",
-    "experimentCommits": [
-      "c869fc92c3898f69807d45a6da71241fa540be9c",
-      "dfa71b7927ae15a5bd40cf4ae26443c3f6416c55",
-      "c0dfc74bd98233aead2af868c6d263258cfd7c4c"
+    "sourceCommitBefore": "ba166422ea878080aab7936f16973e35d740d4fc",
+    "experimentCommit": "d0c7584bae36d28532953fe28a98ae1c8ea4015b",
+    "revertCommit": "dab75b26cb23afacc8905290b4e9c5a65547be17",
+    "changedFiles": [
+      "scripts/probe-extension.py"
     ],
-    "revertCommits": [
-      "cb86d77559d9ea26adddc60e330843bcdd24c0b8",
-      "32c843f8d0fbc7ea900c966eff7986a0fa52cda7",
-      "295e4a8d810699a35ffc46faef4e6d62bab78c82"
+    "originalProbeBlob": "cc25450621ef85d46fddd19c0f404ee0a6747931",
+    "restoredExactBlob": true,
+    "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41194039959",
+    "fiveMinuteNativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41194057313",
+    "revertBuildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41194552125",
+    "revertNativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41194568148",
+    "revertNativeAttempts": [
+      {
+        "attempt": 1,
+        "detected": 4028,
+        "atSeconds": 75,
+        "artifactId": 13040410557
+      },
+      {
+        "attempt": 2,
+        "detected": 4028,
+        "atSeconds": 75,
+        "artifactId": 13039979989
+      },
+      {
+        "attempt": 3,
+        "detected": 4227,
+        "atSeconds": 105,
+        "artifactId": 13040495881
+      }
     ],
-    "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41191597687",
-    "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41191613909",
-    "revertBuildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41191988756",
-    "revertNativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41192005260",
-    "crxVersion": "6.12.8",
-    "ruleSha256": "c4d96eabcda242bb9e84dd0fc06c38f614046184a4741d769875b22a18174c64",
-    "browserVersion": "156.0.8078.80",
-    "diagnostics": {
+    "experimentSampling": {
+      "durationSeconds": 300,
+      "minimumObservationSeconds": 300,
+      "firstCount": 4227,
+      "lastCount": 4227,
+      "peakCount": 4227,
+      "uniqueNamesAtEveryCheckpoint": 4227,
+      "checkpoints": 20
+    },
+    "finalVerified": {
+      "nativeDetected": 4227,
       "iframeHttpDocumentResponses": 0,
       "http404Responses": 0,
       "thirdPartyHttpResponses": 0,
-      "cspBlockedRequests": 8230
+      "deployedShaMatched": true,
+      "crxVersion": "6.12.8",
+      "browserVersion": "156.0.8078.80"
     },
-    "notes": "Two CSP hashes and two executable inline scripts build/verify correctly, but CRX native 4,227 unchanged with no gained/lost names. Reverted all three code files to byte-identical pre-trial blobs and verified live source commit and native 4,227 at final restore run. Earlier sequential intermediate commits failed build before all files updated; fully complete trial and revert both passed."
+    "notes": "300-second official CRX native scan did not gain any names relative to preceding 75-second 4227 benchmark. Rolled back test-only timing immediately, restoring file exact blob. Important nondeterminism: identical live site source SHA, same CRX/catalog/browser and same static HTML except commit marker produced 4028 on two normal-duration rechecks, then 4227 on third normal-duration run. The 199 names are not a reproducible five-minute benefit. One reverted run had a Link header, another did not; Link is not necessary for the 4028 result. Treat single-run negative deltas cautiously and require repeated same-SHA confirmation. No HTTP 404/iframe/third-party responses."
   },
   "nextHypotheses": [
     {
@@ -74,7 +100,7 @@
   ],
   "consecutiveNoGainIndependentHypotheses": 5,
   "mode": "watch",
-  "notes": "2026-10-31 JST: User asked to continue increasing detection count from 4227 with iframe HTTP/404 responses kept at zero. Three implementations tried: (1) monotone same-name cookie regex merge: no changed values, 363->363 rule matches; reverted. (2) second inert script data block: official native 4227->4227, gain/loss zero, reverted. (3) second normal CSP-hashed comment-only script: official native 4227->4227 gain/loss zero, reverted. Final code and tests restored with exact build/enrich/verify blobs matching pre-experiment, live SHA 295e4a8, native 4227 with zero iframe HTTP, zero 404, zero third-party responses, Chrome 156 and CRX 6.12.8. Mode watch, user can initiate next active session; ChatGPT scheduler remains disabled.",
+  "notes": "2026-10-31 JST: five-minute Wappalyzer native observation experiment: actual page stayed open 300s, detected 4227 at all 20 checkpoints, no incremental names. User condition met: reverted scripts/probe-extension.py to exact pre-experiment blob. Revert deployment & build passed, native attempts with same SHA yielded [4028,4028,4227], documenting native scan nondeterminism; final attempt 3 at 105 seconds confirmed 4227, iframe HTTP 0, HTTP 404 0, third-party HTTP responses 0, official CRX 6.12.8. Avoid scheduled automation.",
   "experimentHistory": [
     {
       "id": "static-header-shards",
@@ -310,6 +336,41 @@
         "cspBlockedRequests": 8230
       },
       "notes": "Separate application/json data block increased inline script element count 94->95; exact deployment SHA matched and genuine CRX found no additions/losses. Reverted."
+    },
+    {
+      "id": "second-csp-hashed-executable-script",
+      "hypothesis": "Put duplicate comment-only script-rule witnesses in their own second normal hash-authorized inline script so the CRX can scan that element independently, without modifying the original bootstrap.",
+      "status": "measured-no-gain-reverted",
+      "before": 4227,
+      "after": 4227,
+      "net": 0,
+      "gained": [],
+      "lost": [],
+      "sourceCommitBefore": "f537249c7d555038359d0f225f285158efb19c33",
+      "experimentCommits": [
+        "c869fc92c3898f69807d45a6da71241fa540be9c",
+        "dfa71b7927ae15a5bd40cf4ae26443c3f6416c55",
+        "c0dfc74bd98233aead2af868c6d263258cfd7c4c"
+      ],
+      "revertCommits": [
+        "cb86d77559d9ea26adddc60e330843bcdd24c0b8",
+        "32c843f8d0fbc7ea900c966eff7986a0fa52cda7",
+        "295e4a8d810699a35ffc46faef4e6d62bab78c82"
+      ],
+      "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41191597687",
+      "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41191613909",
+      "revertBuildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41191988756",
+      "revertNativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41192005260",
+      "crxVersion": "6.12.8",
+      "ruleSha256": "c4d96eabcda242bb9e84dd0fc06c38f614046184a4741d769875b22a18174c64",
+      "browserVersion": "156.0.8078.80",
+      "diagnostics": {
+        "iframeHttpDocumentResponses": 0,
+        "http404Responses": 0,
+        "thirdPartyHttpResponses": 0,
+        "cspBlockedRequests": 8230
+      },
+      "notes": "Two CSP hashes and two executable inline scripts build/verify correctly, but CRX native 4,227 unchanged with no gained/lost names. Reverted all three code files to byte-identical pre-trial blobs and verified live source commit and native 4,227 at final restore run. Earlier sequential intermediate commits failed build before all files updated; fully complete trial and revert both passed."
     }
   ],
   "latestVerified": {
@@ -319,15 +380,16 @@
     "crxVersion": "6.12.8",
     "ruleSha256": "c4d96eabcda242bb9e84dd0fc06c38f614046184a4741d769875b22a18174c64",
     "browserVersion": "156.0.8078.80",
-    "sourceCommit": "295e4a8d810699a35ffc46faef4e6d62bab78c82",
-    "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41191988756",
-    "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41192005260",
+    "sourceCommit": "dab75b26cb23afacc8905290b4e9c5a65547be17",
+    "buildRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41194552125",
+    "nativeRunUrl": "https://github.com/siyukatu/wappalyzer_pages/actions/runs/41194568148",
     "deployedShaMatched": true,
     "verified": true,
     "iframeHttpDocumentResponses": 0,
     "http404Responses": 0,
     "thirdPartyHttpResponses": 0,
-    "cspBlockedRequests": 8230
+    "cspBlockedRequests": 8230,
+    "nativeRunAttempt": 3
   },
   "latestFailedNonMeasurement": {
     "sourceCommit": "1c8dd1e0fb316ce0f3af7d134590f17039e39205",
@@ -432,5 +494,17 @@
       },
       "note": "Both variants lost same 199 actual native technologies, so do not reattempt without per-script native preservation proof. CSP-blocked browser request attempts are not HTTP 404 responses."
     }
-  ]
+  ],
+  "nativeRepeatabilityWarning": {
+    "observedAt": "2026-10-31 JST",
+    "sameDeployedCommit": "dab75b26cb23afacc8905290b4e9c5a65547be17",
+    "detectedByAttempt": [
+      4028,
+      4028,
+      4227
+    ],
+    "officialCRX": "6.12.8",
+    "underlyingPageContent": "identical except commit metadata compared with 300-second experiment",
+    "guidance": "Do not infer an actual change of page detection capability from a single native run; repeat the same SHA with unchanged CRX/browser to distinguish extension initialization/scan variance. Full 300s wait showed no gained names."
+  }
 }
