@@ -145,7 +145,7 @@ function selectHeaders(all, witness, missingNames = new Set(), urgentNames = new
   return {lines, count:lines.length, approxMatches:score, bytes:total, sharedHeaderDiagnostics, viaHeaderDiagnostics};
 }
 export function generateExtras(all, witness, missingNames = new Set(), urgentNames = new Set(), preserveNames = new Set()) {
-  const dom = new Set(), comments = new Set(), cookieValues = new Map(), js = new Map(), domProperties = new Map();
+  const dom = new Set(), comments = new Set(), cookieValues = new Map(), cookieVariants = new Map(), js = new Map(), domProperties = new Map();
   let domRuleCount = 0, cookieRuleCount=0;
   for (const [techName, tech] of Object.entries(all)) {
     const dr = tech?.dom;
@@ -235,10 +235,43 @@ export function generateExtras(all, witness, missingNames = new Set(), urgentNam
       const priority = urgentNames.has(techName) ? 1300 : preserveNames.has(techName) ? 1200 : cookieOnly ? 900 : missingNames.has(techName) ? 10 : 0;
       const prior = cookieValues.get(name);
       if (!prior || priority>prior.priority) cookieValues.set(name,{value:sample,priority,cookieOnly});
+      // Keep every valid alternative for the same cookie name. An opt-in
+      // monotone value merger may satisfy several regexes in the same slot.
+      for (const pattern of values(raw)) {
+        if (typeof pattern!=='string' || pattern.length>300) continue;
+        const expr=pattern.split('\\;')[0];
+        try { const re=new RegExp(expr,'i');
+          const candidate=expr==='' ? '1' : witness(pattern);
+          if(typeof candidate==='string' && /^[a-z0-9_.-]{1,80}$/i.test(candidate) && re.test(candidate)) {
+            if(!cookieVariants.has(name)) cookieVariants.set(name,[]);
+            cookieVariants.get(name).push({re,candidate});
+          }
+        } catch {}
+      }
     }
 
   }
   const orderedCookies=[...cookieValues].sort((a,b)=>b[1].priority-a[1].priority || a[0].localeCompare(b[0]));
+  let cookieRegexMatchesBefore=0, cookieRegexMatchesAfter=0, mergedCookies=0;
+  // Do not evict any of the 360 names. Preserve *every* regex matched by
+  // the existing value; adopt combined ASCII values only for strict gains.
+  for (const [name,record] of orderedCookies.slice(0,360)) {
+    const rules=cookieVariants.get(name)||[];
+    const matches=value=>rules.reduce((n,r)=>n+(r.re.test(value)?1:0),0);
+    const baseline=record.value;
+    let best=baseline, count=matches(baseline);
+    cookieRegexMatchesBefore+=count;
+    if (rules.length>1) for (const {candidate} of rules) {
+      for (const v of [candidate,best+'-'+candidate,candidate+'-'+best,best+'_'+candidate,candidate+'_'+best]) {
+        if(v.length>80 || !/^[a-z0-9_.-]+$/i.test(v) || v===best)continue;
+        if (!rules.every(r=>!r.re.test(baseline)||r.re.test(v)))continue;
+        const score=matches(v);
+        if(score>count){best=v;count=score;}
+      }
+    }
+    if(best!==baseline){record.value=best;mergedCookies++;}
+    cookieRegexMatchesAfter+=count;
+  }
   const chosenCookies=orderedCookies.slice(0,180);
   // CHIPS provides an independent top-level-site cookie partition in Chrome.
   // The browser probe independently confirmed 110 regular + 110 partitioned
@@ -262,7 +295,7 @@ export function generateExtras(all, witness, missingNames = new Set(), urgentNam
   return {
     bootstrap: cookieScript + propertyScript,
     body, headers,
-    stats: {additionalDom:dom.size, htmlComments:comments.size, syntheticDomProperties:domProperties.size, cookies:cookieList.length, partitionedCookies:partitionedList.length, cookieOnlyChosen, nativePreservedChosen, upstreamDomSelectors:domRuleCount, upstreamCookieRules:cookieRuleCount,
+    stats: {additionalDom:dom.size, htmlComments:comments.size, syntheticDomProperties:domProperties.size, cookies:cookieList.length, partitionedCookies:partitionedList.length, cookieOnlyChosen, nativePreservedChosen, mergedCookies, cookieRegexMatchesBefore, cookieRegexMatchesAfter, upstreamDomSelectors:domRuleCount, upstreamCookieRules:cookieRuleCount,
       syntheticHeaderFields: headers.count, syntheticHeaderMatches:headers.approxMatches, syntheticHeaderBytes: headers.bytes,
       sharedHeaderDiagnostics:headers.sharedHeaderDiagnostics,
       viaHeaderDiagnostics:headers.viaHeaderDiagnostics}
