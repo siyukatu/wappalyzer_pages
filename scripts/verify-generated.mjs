@@ -25,9 +25,10 @@ assert.match(html,/<body[^>]+(?:class|data-[a-z-]+)=/,'Actual body element lacks
 assert.ok(!/[\r\n]/.test(html),'index.html must be exactly one physical line');
 assert.ok(!/[\r\n]/.test(notFound),'404.html must be exactly one physical line');
 assert.ok(!/body\{display:none/.test(style),'Body must remain text-detectable while visually hidden');
-assert.equal(scripts.length,1,'Expect one CSP-authorized bootstrap in the head');
+assert.equal(scripts.length,2,'Expect bootstrap and separate CSP-hashed script witnesses in the head');
 assert.ok(headers.includes("style-src 'sha256-"+digest(style)+"'"),'CSS CSP hash mismatch');
-assert.ok(headers.includes("script-src 'sha256-"+digest(scripts[0])+"'"),'JS CSP hash mismatch');
+assert.ok(headers.includes("script-src 'sha256-"+digest(scripts[0])+"' 'sha256-"+digest(scripts[1])+"'"),'JS CSP hashes mismatch');
+assert.match(scripts[1],/^\/\*[^]*\*\/$/,'Second inline script must be comment-only witnesses');
 const cookieWrites=[];
 const sandbox={document:{set cookie(value){cookieWrites.push(value)},get cookie(){return ''}}};
 new Script(scripts[0],{filename:'wappalyzer-bootstrap.js'}).runInNewContext(sandbox,{timeout:5000});
