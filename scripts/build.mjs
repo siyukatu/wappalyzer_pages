@@ -78,7 +78,6 @@ const compactGlobals = compileGlobals(all, witness);
 const inlineWitnesses = [...inlineSignatures].sort().map(v => '/*' + v.replace(/\*\//g,'* /') + '*/').join('');
 const bootstrap = (compactGlobals.source + ';' + extras.bootstrap + ';' + inlineWitnesses).replace(/[\r\n]/g,'');
 const hash = createHash('sha256').update(bootstrap).digest('base64');
-const witnessHash = createHash('sha256').update(inlineWitnesses).digest('base64');
 /* Static Pages cannot issue a fresh per-response nonce. Use CSP SHA-256 instead.
  * Hide the entire synthetic fingerprint body while keeping its DOM accessible.
  * Browsers must not navigate synthetic iframe src values in the document.
@@ -102,10 +101,7 @@ const html = '<!doctype html>\n<html lang="en"'+root.html+'><head><meta charset=
   }).join('') +
   [...links].map((url) => '<link rel="stylesheet" href="' + escape(url) + '">').join('\n') + '\n' +
   [...scripts].map((url) => '<script src="' + escape(url) + '"></script>').join('\n') + '\n' +
-  '<script>' + bootstrap.replace(/<\/script/gi, '<\\/script') + '</script>\n' +
-  // Split out the inert comment witnesses as a second hash-authorized native
-  // script. Separate script text nodes may be scanned independently.
-  '<script>' + inlineWitnesses.replace(/<\/script/gi, '<\\/script') + '</script>\n</head><body'+root.body+'>\n' +
+  '<script>' + bootstrap.replace(/<\/script/gi, '<\\/script') + '</script>\n</head><body'+root.body+'>\n' +
   '<!-- Synthetic signatures only; named technologies are NOT necessarily installed. -->\n' +
   '<div id="wappalyzer-fingerprints">\n' +
   extras.body + '\n' +
@@ -118,7 +114,7 @@ await mkdir(OUT, { recursive: true });
 const compactHtml = html.replace(/[\r\n]/g,'');
 if (/[\r\n]/.test(compactHtml)) throw new Error('index.html must be one line');
 await writeFile(OUT + '/index.html', compactHtml);
-await writeFile(OUT + '/_headers', emitHeaders([hash,witnessHash], extras, styleHash));
+await writeFile(OUT + '/_headers', emitHeaders(hash, extras, styleHash));
 // Remove legacy static shard assets from incremental local builds too.
 await rm(OUT + '/header-shards', {recursive:true, force:true});
 await writeFile(OUT + '/404.html', '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><title>404 Not Found</title></head><body><h1>404 Not Found</h1><a href="/">Home</a></body></html>');
