@@ -88,9 +88,8 @@ chrome.tabs.query({}, tabs=>done(tabs.map(x=>({id:x.id,url:x.url,active:x.active
     # rescan (five seconds after its initial pipeline). Requirements can trigger
     # additional DOM scans. A single read is therefore too early.
     #
-    # Experimental five-minute hold: leave the real site tab open for at
-    # least 300 seconds after navigation, even if native detections stabilize
-    # earlier. Only extension-native results count; no page behavior changes.
+    # Poll the extension's *own* background API for up to ~105 s, and require
+    # at least 60 s and 20 s without new names before considering it stable.
     # Keep the largest observed result as a safeguard against transient empty
     # replies, and record all snapshots for reproducible diagnostics.
     native_js = """
@@ -156,9 +155,9 @@ chrome.tabs.query({},tabs=>{
     first_valid_native_count=None
     last_native_attempt=-100
     last_native_error=None
-    checkpoints=[0,5,10,15,22,30,40,50,60,75,90,105,120,150,180,210,240,270,285,300,315,330]
+    checkpoints=[0,5,10,15,22,30,40,50,60,75,90,105,120,150,180,210,240]
     for scheduled_second in checkpoints:
-        if time.monotonic()-page_loaded_at>360:
+        if time.monotonic()-page_loaded_at>270:
             print('NATIVE_SCAN_DEADLINE',round(time.monotonic()-page_loaded_at,2),flush=True)
             break
         delay=scheduled_second-(time.monotonic()-page_loaded_at)
@@ -246,8 +245,8 @@ chrome.tabs.query({},tabs=>{
         timeline.append(point)
         print('NATIVE_DETECTION_TIMELINE',json.dumps(point,ensure_ascii=False),flush=True)
         # The last two badge observations are at least 20 seconds apart and
-        # must agree; for this experiment, never settle earlier than 5 min.
-        if (elapsed>=300 and badge_count is not None and
+        # must agree; settle no sooner than a minute after page load.
+        if (elapsed>=60 and badge_count is not None and
             badge_quiet>=20 and raw_quiet>=20 and len(timeline)>=4 and best_count>=1000):
             stable_at=elapsed
             break
@@ -266,7 +265,6 @@ chrome.tabs.query({},tabs=>{
         'lastRawMatches':last_raw_count,
         'peakRawMatches':peak_raw_count,
         'durationSeconds':timeline[-1]['secondsAfterPageLoad'] if timeline else 0,
-        'minimumObservationSeconds':300,
         'stableAtSeconds':stable_at,
         'stabilized':stable_at is not None,
         'checkpoints':len(timeline),
