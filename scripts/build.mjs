@@ -101,7 +101,10 @@ const html = '<!doctype html>\n<html lang="en"'+root.html+'><head><meta charset=
   }).join('') +
   [...links].map((url) => '<link rel="stylesheet" href="' + escape(url) + '">').join('\n') + '\n' +
   [...scripts].map((url) => '<script src="' + escape(url) + '"></script>').join('\n') + '\n' +
-  '<script>' + bootstrap.replace(/<\/script/gi, '<\\/script') + '</script>\n</head><body'+root.body+'>\n' +
+  '<script>' + bootstrap.replace(/<\/script/gi, '<\\/script') + '</script>\n' +
+  // A second, non-executable inline data block exposes individual script-rule
+  // witnesses without splitting/changing the CSP-authorized bootstrap script.
+  '<script type="application/json" id="wappalyzer-script-witnesses">' + inlineWitnesses.replace(/<\/script/gi, '<\\/script') + '</script>\n</head><body'+root.body+'>\n' +
   '<!-- Synthetic signatures only; named technologies are NOT necessarily installed. -->\n' +
   '<div id="wappalyzer-fingerprints">\n' +
   extras.body + '\n' +
