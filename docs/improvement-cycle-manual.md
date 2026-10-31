@@ -14,7 +14,7 @@
 **絶対条件:**
 
 1. Cloudflare Pages の **静的アセットと `_headers` のみ**で完結する。**Cloudflare Pages Functions、`functions/`、`_worker.js`、Workers、動的バックエンドを追加しない。**
-2. 本番サイトから外部オリジンへの実際の通信を増やさない。既存の厳格な CSP を保つ（`connect-src 'none'`、外部スクリプト・画像・CSS の実行／取得は禁止）。iframe を使う場合は同一オリジン限定。既存の CSP ハッシュ、XSS 保護、ブラウザーの安全性を壊さない。
+2. 本番サイトから外部オリジンへの実際の通信を増やさない。既存の厳格な CSP を保つ（`connect-src 'none'`、外部スクリプト・画像・CSS の実行／取得は禁止）。**iframe のHTTP読み込みは全面禁止**（`frame-src 'none'`、`child-src 'none'`）。DOMセレクター証拠としてiframe要素・属性を残すことは可。削除済みのheader-shardsを再生成・再読込しない。既存の CSP ハッシュ、XSS 保護、ブラウザーの安全性を壊さない。
 3. **公式 CRX のネイティブ検出結果**だけを採否基準とする。直接エンジンを呼ぶ補助解析の約 6,990 件、生成ルール数、CSV の過去の値はネイティブ検出数と混同しない。
 4. **検出の回帰を原則として採用しない。** 単純な合計数だけでなく `gained` と `lost` の技術名を確認する。同じ CRX バージョン・ルール SHA、同じブラウザー条件で比較する。例外はユーザーの明示的な許可がある場合のみ。
 5. 本番へ変更する前にリポジトリと Actions の最新状態を確認する。他者の変更を上書きしない。作業者が GitHub の編集権限を持たない場合は、未実施と明記してパッチを提示する。実行していない検査を「成功」と書かない。
@@ -47,6 +47,15 @@
 - Cloudflare Pages は `.html` の URL を拡張子なしに正規化することがある。iframe URL と `_headers` のパスルールを実配信 URL に合わせる。
 - `_headers` の100という制限は**パスルール数**であり、レスポンスヘッダーフィールド数ではない。ブラウザー・HTTPパーサー・CDNの個数／サイズ制限は独立に検証する。
 - 過去の手動CSV 2,841 / 3,161 / 3,361 と、補助解析 6,990 は、公式CRXのネイティブ 4,224 と同列比較しない。
+
+### 2026-10-31：不要なHTTPリクエストと404の抑止（最優先の維持条件）
+
+- ユーザー報告の大量のiframe 404は、生成HTML内の250個のiframe（DOM証拠247件＋ヘッダー分割用3件）のうち、多数のDOM証拠用 `src` が存在しない相対URLに解釈され得ることが原因。以前のヘッダー分割実験はネイティブ純増0だったため、3件の読み込み用iframeとその静的ファイル・_headersルールを削除済み。
+- CSPは `frame-src 'none'` / `child-src 'none'` とし、247個のDOM証拠としてのiframe要素は残すが**HTTPナビゲーションさせない**。
+- 公式CRXとSeleniumで、**native 4,227 → 4,227（gain 0/loss 0）**、iframe HTTP文書応答0件、HTTP 404応答0件、外部オリジン応答0件、デプロイSHA一致を実測。採用検査：https://github.com/siyukatu/wappalyzer_pages/actions/runs/41189534271 、最終復元検査：https://github.com/siyukatu/wappalyzer_pages/actions/runs/41190430687
+- **CI回帰ゲート:** `scripts/verify-generated.mjs` は shard iframe・shard assets・shard header paths が無いことと CSP のframe/child禁止を検証。`scripts/selenium-capture.py` は実際のHTTP子文書応答とHTTP 404応答が1件でもあれば失敗する。
+- `script[src]` 7,986個をデータブロックtypeまたは `nomodule` にするとブラウザーCSPブロック試行は8,230→250へ減るが、いずれも公式ネイティブ検出が**4,227→4,028（199件損失）**。両方撤回し、4,227に再復旧済み。CSPブロックのログは**実際のHTTP応答ではない**。既存199検出名を喪失する方法を再採用しない。
+- このHTTPリクエスト抑止は `watch` モード中も維持する。新たな検出増加を狙ってiframe HTTP通信を戻さない。
 
 ## 4. 次の候補（最新の実測で優先順位を更新）
 
